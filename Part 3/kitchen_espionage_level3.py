@@ -2,8 +2,31 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import PhotoImage
 import os
+import sys
+import subprocess
 import random
 import time
+import ctypes
+
+def start_bgm(music_path):
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('close bgm', None, 0, None)
+        cmd = f'open "{music_path}" type mpegvideo alias bgm'
+        winmm.mciSendStringW(cmd, None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+        winmm.mciSendStringW('play bgm repeat', None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+    except Exception:
+        pass
+
+def stop_bgm():
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('stop bgm', None, 0, None)
+        winmm.mciSendStringW('close bgm', None, 0, None)
+    except Exception:
+        pass
 
 class RowhammerKitchenGUI:
     def __init__(self, root):
@@ -39,6 +62,13 @@ class RowhammerKitchenGUI:
         self.chef = PhotoImage(file=os.path.join(script_dir, "chef.png"))
         self.chef = self.chef.subsample(2, 2)
         self.canvas.create_image(250, 70, image=self.chef, tags="chef")
+
+        # Audio Setup
+        self.music_on = True
+        self.music_path = os.path.join(script_dir, "restaurant_music.mp3")
+        if os.path.exists(self.music_path):
+            start_bgm(self.music_path)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # --- 2. STATUS HUD ---
         self.actions_label = tk.Label(
@@ -92,6 +122,16 @@ class RowhammerKitchenGUI:
             font=("Arial", 9, "bold")
         )
         self.btn_help.pack(side="right")
+
+        self.btn_audio = tk.Button(
+            header_frame,
+            text="🔊 Music: ON",
+            command=self.toggle_music,
+            bg="#2980b9",
+            fg="white",
+            font=("Arial", 9, "bold")
+        )
+        self.btn_audio.pack(side="right", padx=(0, 6))
 
         # Row Selection & Hammer Action
         hammer_frame = tk.Frame(ctrl_frame, bg="#34495e")
@@ -303,15 +343,9 @@ class RowhammerKitchenGUI:
                 text="The Chef notices the access list on the floor and unlocks the pantry!", 
                 fg="#2ecc71"
             )
-            messagebox.showinfo(
-                "VICTORY!", 
-                "🎉 Mission Accomplished!\n\n"
-                "The Head Chef opens the ledger and gasps:\n"
-                "'Wait... the access list is missing from the shelf! It must have fallen off.'\n\n"
-                "The Chef unlocks the pantry door. You have successfully cleared Level 3 and mastered Rowhammer!"
-            )
             self.btn_hammer.config(state="disabled")
             self.btn_check.config(state="disabled")
+            self.root.after(300, self.show_grand_victory_popup)
         else:
             self.status_label.config(text="Verification Failed!", fg="#e74c3c")
             self.feedback_label.config(
@@ -377,6 +411,157 @@ class RowhammerKitchenGUI:
             "5. BEWARE: You have 35 actions total. Failed checks cost 3 actions penalty. If actions reach 0, the Prep Cook resets the shelves!"
         )
         messagebox.showinfo("Part 3 - Mission Briefing & Instructions", msg)
+
+    def toggle_music(self):
+        if self.music_on:
+            stop_bgm()
+            self.music_on = False
+            self.btn_audio.config(text="🔇 Music: OFF", bg="#7f8c8d")
+        else:
+            if os.path.exists(self.music_path):
+                start_bgm(self.music_path)
+                self.music_on = True
+                self.btn_audio.config(text="🔊 Music: ON", bg="#2980b9")
+
+    def _on_close(self):
+        stop_bgm()
+        self.root.destroy()
+
+    def show_grand_victory_popup(self):
+        popup = tk.Toplevel(self.root)
+        popup.title("🏆 MISSION ACCOMPLISHED - Kitchen Espionage Cleared!")
+        popup.geometry("600x500")
+        popup.configure(bg="#1a252f")
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        popup.grab_set()
+
+        # Center popup over root
+        self.root.update_idletasks()
+        rx = self.root.winfo_x()
+        ry = self.root.winfo_y()
+        rw = self.root.winfo_width()
+        rh = self.root.winfo_height()
+        px = rx + max(0, (rw - 600) // 2)
+        py = ry + max(0, (rh - 500) // 2)
+        popup.geometry(f"+{px}+{py}")
+
+        # Header Banner
+        header = tk.Frame(popup, bg="#2c3e50", pady=15)
+        header.pack(fill="x")
+
+        tk.Label(
+            header,
+            text="🎉 CONGRATULATIONS, AGENT! 🎉",
+            bg="#2c3e50",
+            fg="#f1c40f",
+            font=("Arial", 16, "bold")
+        ).pack()
+
+        tk.Label(
+            header,
+            text="ALL 3 LEVELS OF KITCHEN ESPIONAGE CLEARED!",
+            bg="#2c3e50",
+            fg="#ecf0f1",
+            font=("Arial", 11, "bold")
+        ).pack(pady=(4, 0))
+
+        # Content Card Frame
+        card = tk.Frame(popup, bg="#34495e", bd=2, relief="groove", padx=20, pady=15)
+        card.pack(fill="both", expand=True, padx=25, pady=15)
+
+        tk.Label(
+            card,
+            text="MISSION DEBRIEF & ACHIEVEMENTS",
+            bg="#34495e",
+            fg="#3498db",
+            font=("Arial", 12, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        achievements = [
+            ("✔ Part 1: Flush+Reload Cache Attack", "Recovered the 4 secret VIP recipe ingredients using cache fetch timing!"),
+            ("✔ Part 2: 5-Stage CPU Pipeline & Latency", "Traced IF/DE/EX/ME/WB cycles and mapped multi-tier memory latency!"),
+            ("✔ Part 3: DRAM Rowhammer Disturbance", "Induced adjacent DRAM row disturbance to shake loose the security access list!")
+        ]
+
+        for title, desc in achievements:
+            row = tk.Frame(card, bg="#34495e")
+            row.pack(fill="x", pady=4)
+            tk.Label(row, text=title, bg="#34495e", fg="#2ecc71", font=("Arial", 10, "bold")).pack(anchor="w")
+            tk.Label(row, text=f"   • {desc}", bg="#34495e", fg="#ecf0f1", font=("Arial", 9)).pack(anchor="w")
+
+        takeaway = (
+            "Hardware Security Takeaway:\n"
+            "Software permissions alone cannot prevent side-channel and fault-injection\n"
+            "attacks when microarchitectural timing and physical silicon physics are exploited!"
+        )
+        tk.Label(
+            card,
+            text=takeaway,
+            bg="#2c3e50",
+            fg="#bdc3c7",
+            font=("Arial", 9, "italic"),
+            bd=1,
+            relief="solid",
+            padx=10,
+            pady=6,
+            justify="center"
+        ).pack(fill="x", pady=(12, 0))
+
+        # Bottom Action Buttons
+        btn_box = tk.Frame(popup, bg="#1a252f", pady=12)
+        btn_box.pack(fill="x", padx=25)
+
+        btn_replay = tk.Button(
+            btn_box,
+            text="🔄 Replay Level 3",
+            command=lambda: self.replay_part3(popup),
+            bg="#3498db",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            padx=10,
+            pady=4
+        )
+        btn_replay.pack(side="left", padx=5)
+
+        btn_restart = tk.Button(
+            btn_box,
+            text="🚀 Restart From Part 1",
+            command=lambda: self.restart_entire_game(popup),
+            bg="#27ae60",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            padx=10,
+            pady=4
+        )
+        btn_restart.pack(side="left", padx=5)
+
+        btn_exit = tk.Button(
+            btn_box,
+            text="🚪 Exit Game",
+            command=self._on_close,
+            bg="#e74c3c",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            padx=10,
+            pady=4
+        )
+        btn_exit.pack(side="right", padx=5)
+
+    def replay_part3(self, popup_win=None):
+        if popup_win:
+            popup_win.destroy()
+        self.reset_level()
+
+    def restart_entire_game(self, popup_win=None):
+        stop_bgm()
+        if popup_win:
+            popup_win.destroy()
+        self.root.destroy()
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        main_script = os.path.join(base_dir, "main.py")
+        if os.path.exists(main_script):
+            subprocess.run([sys.executable, main_script], cwd=base_dir)
 
 
 def run_rowhammer_level():

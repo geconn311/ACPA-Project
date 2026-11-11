@@ -6,6 +6,27 @@ import time
 import os
 import sys
 import subprocess
+import ctypes
+
+def start_bgm(music_path):
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('close bgm', None, 0, None)
+        cmd = f'open "{music_path}" type mpegvideo alias bgm'
+        winmm.mciSendStringW(cmd, None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+        winmm.mciSendStringW('play bgm repeat', None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+    except Exception:
+        pass
+
+def stop_bgm():
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('stop bgm', None, 0, None)
+        winmm.mciSendStringW('close bgm', None, 0, None)
+    except Exception:
+        pass
 
 class InteractiveKitchen:
     def __init__(self, root):
@@ -41,6 +62,13 @@ class InteractiveKitchen:
         self.chef = self.chef.subsample(2, 2)
         self.canvas.create_image(85, 50, image=self.chef, tags="chef")
 
+        # Audio Setup
+        self.music_on = True
+        self.music_path = os.path.join(script_dir, "restaurant_music.mp3")
+        if os.path.exists(self.music_path):
+            start_bgm(self.music_path)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
         # --- 2. STATUS HUD ---
         self.status_label = tk.Label(root, text="System Ready. Waiting for attacker action...", bg="#2c3e50", fg="#f1c40f", font=("Arial", 11, "bold"))
         self.status_label.pack(pady=5)
@@ -57,6 +85,8 @@ class InteractiveKitchen:
         tk.Label(header_frame, text="ATTACKER CONTROL PANEL", bg="#34495e", fg="white", font=("Arial", 12, "bold")).pack(side="left")
         self.btn_help = tk.Button(header_frame, text="📋 Instructions", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 9, "bold"))
         self.btn_help.pack(side="right")
+        self.btn_audio = tk.Button(header_frame, text="🔊 Music: ON", command=self.toggle_music, bg="#2980b9", fg="white", font=("Arial", 9, "bold"))
+        self.btn_audio.pack(side="right", padx=(0, 6))
 
         # Phase 1: Flush
         self.btn_flush = tk.Button(control_frame, text="1. Flush Cache (Clear Counter)", command=self.flush_cache, bg="#e67e22", fg="white", width=30)
@@ -191,12 +221,28 @@ class InteractiveKitchen:
 
     def launch_part_2(self):
         """Launches Part 2 (kitchen_espionage_part2.py) once Part 1 is successfully completed."""
+        stop_bgm()
         part2_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Part 2"))
         part2_script = os.path.join(part2_dir, "kitchen_espionage_part2.py")
         if os.path.exists(part2_script):
             subprocess.run([sys.executable, part2_script], cwd=part2_dir)
         else:
             messagebox.showerror("Error", f"Could not find Part 2 script at:\n{part2_script}")
+
+    def toggle_music(self):
+        if self.music_on:
+            stop_bgm()
+            self.music_on = False
+            self.btn_audio.config(text="🔇 Music: OFF", bg="#7f8c8d")
+        else:
+            if os.path.exists(self.music_path):
+                start_bgm(self.music_path)
+            self.music_on = True
+            self.btn_audio.config(text="🔊 Music: ON", bg="#2980b9")
+
+    def _on_close(self):
+        stop_bgm()
+        self.root.destroy()
 
     def show_instructions(self):
         """Displays interactive mission instructions in a dialog."""

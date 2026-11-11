@@ -5,6 +5,27 @@ import os
 import sys
 import subprocess
 import time
+import ctypes
+
+def start_bgm(music_path):
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('close bgm', None, 0, None)
+        cmd = f'open "{music_path}" type mpegvideo alias bgm'
+        winmm.mciSendStringW(cmd, None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+        winmm.mciSendStringW('play bgm repeat', None, 0, None)
+        winmm.mciSendStringW('setaudio bgm volume to 100', None, 0, None)
+    except Exception:
+        pass
+
+def stop_bgm():
+    try:
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW('stop bgm', None, 0, None)
+        winmm.mciSendStringW('close bgm', None, 0, None)
+    except Exception:
+        pass
 
 # --- Memory & Cache Simulation Constants ---
 # Memory array: 20 entries
@@ -76,6 +97,13 @@ class KitchenPipelineGUI:
         self.chef_img = PhotoImage(file=os.path.join(script_dir, "chef.png"))
         self.chef_img = self.chef_img.subsample(2, 2)
         self.canvas.create_image(120, 60, image=self.chef_img, tags="chef")
+
+        # Audio Setup
+        self.music_on = True
+        self.music_path = os.path.join(script_dir, "restaurant_music.mp3")
+        if os.path.exists(self.music_path):
+            start_bgm(self.music_path)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # --- 2. STATUS HUD ---
         self.cycle_label = tk.Label(root, text="Cycle: 0 | CPU Initialized", bg="#2c3e50", fg="#f1c40f", font=("Arial", 12, "bold"))
@@ -151,6 +179,9 @@ class KitchenPipelineGUI:
 
         self.btn_help = tk.Button(ctrl_frame, text="📋 Instructions", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 10, "bold"), width=14)
         self.btn_help.pack(side="left", padx=10)
+
+        self.btn_audio = tk.Button(ctrl_frame, text="🔊 Music: ON", command=self.toggle_music, bg="#2980b9", fg="white", font=("Arial", 10, "bold"), width=13)
+        self.btn_audio.pack(side="left", padx=10)
 
         self.is_auto = False
         self.completed = False
@@ -383,7 +414,23 @@ class KitchenPipelineGUI:
         )
         messagebox.showinfo("Part 2 - Mission Briefing & Instructions", msg)
 
+    def toggle_music(self):
+        if self.music_on:
+            stop_bgm()
+            self.music_on = False
+            self.btn_audio.config(text="🔇 Music: OFF", bg="#7f8c8d")
+        else:
+            if os.path.exists(self.music_path):
+                start_bgm(self.music_path)
+                self.music_on = True
+                self.btn_audio.config(text="🔊 Music: ON", bg="#2980b9")
+
+    def _on_close(self):
+        stop_bgm()
+        self.root.destroy()
+
     def on_pipeline_completed(self):
+        stop_bgm()
         messagebox.showinfo(
             "Part 2 Cleared!",
             "Challenge Cleared!\n\nAll CPU pipeline stages have executed successfully.\n\nClick OK to advance to Part 3 (Rowhammer Attack)!"
@@ -392,8 +439,11 @@ class KitchenPipelineGUI:
         self.launch_part_3()
 
     def launch_part_3(self):
+        stop_bgm()
         part3_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Part 3"))
-        part3_script = os.path.join(part3_dir, "kitchen_espionage_level3.py")
+        part3_script = os.path.join(part3_dir, "kitchen_espionage_part3.py")
+        if not os.path.exists(part3_script):
+            part3_script = os.path.join(part3_dir, "kitchen_espionage_level3.py")
         if os.path.exists(part3_script):
             subprocess.run([sys.executable, part3_script], cwd=part3_dir)
         else:

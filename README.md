@@ -27,6 +27,7 @@ python main.py
   - Discrete timing measurement and cache state mapping (`time`).
   - Instruction decoding and 5-stage CPU cycle advancement (`IF`, `DE`, `EX`, `ME`, `WB`).
   - Stochastic bit-flip disturbance modeling (`random`).
+- **Audio System:** Native Windows MCI multimedia playback (`ctypes.windll.winmm`) playing the classic Club Penguin Pizza Parlor restaurant music across all levels, with in-game `🔊 Music: ON` / `🔇 Music: OFF` controls and zero external audio package dependencies.
 - **Visual Assets:** Custom sprites (`chef.png`, `counter.png`, `freezer.png`) integrated into dynamic Tkinter canvas animations.
 
 ---
@@ -34,7 +35,7 @@ python main.py
 ## 📋 Summary of Levels
 
 ### 🔪 Part 1: Flush+Reload Cache Side-Channel Attack
-- **File:** [`Part 1/kitchen_espionage.py`](Part%201/kitchen_espionage.py)
+- **File:** [`Part 1/kitchen_espionage_part1.py`](Part%201/kitchen_espionage_part1.py)
 - **Concept:** Timing-based microarchitectural side-channel attack (Flush+Reload).
 - **The Hardware Analogy:**
   - **Prep Counter** = **L1 Cache (SRAM):** Fast, low-latency access (~0.06s).
@@ -79,3 +80,4 @@ python main.py
   - Listen for clatters and rustling papers indicating falling items.
   - Verify with the Head Chef once the Security Access List has dropped.
   - Must succeed before the 35-action inventory reset limit expires.
+  - Upon clearing Level 3, a **Grand Victory Celebration Popup** summarizes all achievements across the 3 parts and provides options to replay Part 3, restart the full mission from Part 1, or exit cleanly.
