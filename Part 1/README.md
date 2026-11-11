@@ -25,3 +25,4 @@ This simulator runs entirely on Python's built-in libraries. No external package
 3. Run the following command:
    ```bash
    python kitchen_espionage.py
+   ```
