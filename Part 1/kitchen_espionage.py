@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import PhotoImage
 import random
 import time
+import os
+import sys
+import subprocess
 
 class InteractiveKitchen:
     def __init__(self, root):
@@ -16,25 +20,26 @@ class InteractiveKitchen:
         
         # The cache state (what is currently on the prep counter)
         # We start it with random garbage to force the student to "Flush" it first
-        self.prep_counter = random.sample(self.all_ingredients, 6) 
-        
-        print(f"[System Info] VIP Secret Order: {sorted(self.secret_ingredients)}")
+        self.prep_counter = random.sample(self.all_ingredients, 6)
 
         # --- 1. VISUAL CANVAS ---
         self.canvas = tk.Canvas(root, width=600, height=200, bg="#ecf0f1", highlightthickness=0)
         self.canvas.pack(pady=10)
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
         # Draw Freezer (Main Memory) - Right
-        self.canvas.create_rectangle(450, 20, 580, 180, fill="#3498db", outline="")
-        self.canvas.create_text(515, 100, text="Walk-In Freezer\n(Main Memory)", justify="center", font=("Arial", 10, "bold"), fill="white")
+        self.freezer = PhotoImage(file=os.path.join(script_dir, "freezer.png"))
+        self.canvas.create_image(450, 100, image=self.freezer, tags="freezer")
 
         # Draw Prep Counter (L1 Cache) - Left
-        self.canvas.create_rectangle(20, 100, 150, 180, fill="#e74c3c", outline="")
-        self.canvas.create_text(85, 140, text="Prep Counter\n(L1 Cache)", justify="center", font=("Arial", 10, "bold"), fill="white")
+        self.counter = PhotoImage(file=os.path.join(script_dir, "counter.png"))
+        self.canvas.create_image(130, 150, image=self.counter, tags="counter")
 
         # Draw the Chef
-        self.chef = self.canvas.create_oval(65, 50, 105, 90, fill="#f1c40f", outline="#f39c12", width=3)
-        self.canvas.create_text(85, 70, text="Chef", font=("Arial", 8, "bold"), tags="chef_label")
+        self.chef = PhotoImage(file=os.path.join(script_dir, "chef.png"))
+        self.chef = self.chef.subsample(2, 2)
+        self.canvas.create_image(85, 50, image=self.chef, tags="chef")
 
         # --- 2. STATUS HUD ---
         self.status_label = tk.Label(root, text="System Ready. Waiting for attacker action...", bg="#2c3e50", fg="#f1c40f", font=("Arial", 11, "bold"))
@@ -47,7 +52,11 @@ class InteractiveKitchen:
         control_frame = tk.Frame(root, bg="#34495e", bd=2, relief="groove", padx=10, pady=10)
         control_frame.pack(pady=10, fill="x", padx=20)
         
-        tk.Label(control_frame, text="ATTACKER CONTROL PANEL", bg="#34495e", fg="white", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        header_frame = tk.Frame(control_frame, bg="#34495e")
+        header_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="ew")
+        tk.Label(header_frame, text="ATTACKER CONTROL PANEL", bg="#34495e", fg="white", font=("Arial", 12, "bold")).pack(side="left")
+        self.btn_help = tk.Button(header_frame, text="📋 Instructions", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 9, "bold"))
+        self.btn_help.pack(side="right")
 
         # Phase 1: Flush
         self.btn_flush = tk.Button(control_frame, text="1. Flush Cache (Clear Counter)", command=self.flush_cache, bg="#e67e22", fg="white", width=30)
@@ -95,6 +104,14 @@ class InteractiveKitchen:
         for item in self.secret_ingredients:
             if item not in self.prep_counter:
                 self.prep_counter.append(item)
+        for _ in range(40):
+            self.canvas.move("chef", 10, 0)
+            self.root.update()
+            time.sleep(0.02)
+        for _ in range(40):
+            self.canvas.move("chef", -10, 0)
+            self.root.update()
+            time.sleep(0.02)
         self.status_label.config(text="Victim Executed: VIP order placed on prep counter.")
 
     def probe_ingredient(self):
@@ -114,13 +131,11 @@ class InteractiveKitchen:
             self.status_label.config(text=f"Probing {ingredient_id}... Found on Prep Counter (Hit)!")
             # Cache Hit Animation (Short vertical hop)
             for _ in range(5):
-                self.canvas.move(self.chef, 0, -5)
-                self.canvas.move("chef_label", 0, -5)
+                self.canvas.move("chef", 0, -5)
                 self.root.update()
                 time.sleep(0.03)
             for _ in range(5):
-                self.canvas.move(self.chef, 0, 5)
-                self.canvas.move("chef_label", 0, 5)
+                self.canvas.move("chef", 0, 5)
                 self.root.update()
                 time.sleep(0.03)
                 
@@ -131,16 +146,14 @@ class InteractiveKitchen:
             self.status_label.config(text=f"Probing {ingredient_id}... Fetching from Freezer (Miss)!")
             # Cache Miss Animation (Long horizontal walk)
             for _ in range(40):
-                self.canvas.move(self.chef, 10, 0)
-                self.canvas.move("chef_label", 10, 0)
+                self.canvas.move("chef", 10, 0)
                 self.root.update()
                 time.sleep(0.02)
                 
             time.sleep(0.3) # Simulate grabbing the item
             
             for _ in range(40):
-                self.canvas.move(self.chef, -10, 0)
-                self.canvas.move("chef_label", -10, 0)
+                self.canvas.move("chef", -10, 0)
                 self.root.update()
                 time.sleep(0.02)
                 
@@ -166,10 +179,43 @@ class InteractiveKitchen:
         
         if user_guess == secret:
             self.status_label.config(text="ACCESS GRANTED! Secret extracted successfully.", fg="#2ecc71")
-            messagebox.showinfo("Victory!", f"Challenge Cleared!\nYou successfully mapped the cache and extracted the VIP order: {secret}")
+            messagebox.showinfo(
+                "Victory!", 
+                f"Part 1 Cleared!\nYou successfully mapped the cache and extracted the VIP order: {secret}\n\nClick OK to start Part 2 (CPU Pipeline Simulation)!"
+            )
+            self.root.destroy()
+            self.launch_part_2()
         else:
             self.status_label.config(text="ACCESS DENIED! Wrong recipe.", fg="#e74c3c")
             messagebox.showerror("Failed", "Access Denied.\nThe timing footprint does not match the VIP's order. Try flushing the cache and measuring again.")
+
+    def launch_part_2(self):
+        """Launches Part 2 (kitchen_espionage_part2.py) once Part 1 is successfully completed."""
+        part2_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Part 2"))
+        part2_script = os.path.join(part2_dir, "kitchen_espionage_part2.py")
+        if os.path.exists(part2_script):
+            subprocess.run([sys.executable, part2_script], cwd=part2_dir)
+        else:
+            messagebox.showerror("Error", f"Could not find Part 2 script at:\n{part2_script}")
+
+    def show_instructions(self):
+        """Displays interactive mission instructions in a dialog."""
+        msg = (
+            "🎯 MISSION OBJECTIVE:\n"
+            "Extract the 4 secret VIP ingredients (chosen from 0-9) using a Flush+Reload cache attack!\n\n"
+            "⚙️ HARDWARE ANALOGY:\n"
+            "• Prep Counter = L1 Cache (Fast, low-latency access)\n"
+            "• Walk-In Freezer = Main Memory (Slow DRAM, high-latency access)\n"
+            "• Chef = CPU executing memory fetch operations\n\n"
+            "📋 4 ATTACK STEPS:\n"
+            "1. Flush Cache: Clear the prep counter so no stale data is cached.\n"
+            "2. Trigger Victim: VIP loads their 4 secret ingredients onto the prep counter.\n"
+            "3. Measure Latency: Test ingredients 0 through 9 one by one:\n"
+            "   - FAST latency (< 0.1s) -> CACHE HIT! This is a secret VIP ingredient!\n"
+            "   - SLOW latency (> 1.0s) -> CACHE MISS! Not ordered by VIP (fetched from freezer).\n"
+            "4. Submit Attack: Enter the 4 FAST numbers (e.g. '1 3 5 8') and click SUBMIT ATTACK!"
+        )
+        messagebox.showinfo("Part 1 - Mission Briefing & Instructions", msg)
 
     def _set_ui_state(self, state):
         self.btn_flush.config(state=state)
