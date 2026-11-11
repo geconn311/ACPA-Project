@@ -242,18 +242,24 @@ class RowhammerKitchenGUI:
         for i in range(1, 21):
             self.shelves[i] = random.sample(self.pantry_pool, k=random.randint(2, 4))
 
-        valid_targets = [i for i in range(1, 20, 2)]
+        # Target row is an odd shelf flanked by two accessible even rows
+        valid_targets = [3, 5, 7, 9, 11, 13, 15, 17]
         self.target_row = random.choice(valid_targets)
+        self.sandwich_a = self.target_row - 1
+        self.sandwich_b = self.target_row + 1
+        self.recent_hammers = []
+
         self.shelves[self.target_row].append("The Security Access List")
 
         self.accessible_rows = [i for i in range(2, 20, 2)]
-        self.actions_remaining = 35
+        self.max_actions = 26
+        self.actions_remaining = 26
         self.access_list_fallen = False
         self.game_over = False
 
     def reset_level(self):
         self._init_game_state()
-        self.actions_label.config(text="Actions Remaining: 35 / 35", fg="#2ecc71")
+        self.actions_label.config(text=f"Actions Remaining: {self.max_actions} / {self.max_actions}", fg="#2ecc71")
         self.status_label.config(text="Level restarted. Select an even row to hammer.", fg="#f1c40f")
         self.feedback_label.config(text="The secret security access list is sitting on an odd shelf...", fg="#ecf0f1")
         self.btn_hammer.config(state="normal")
@@ -274,6 +280,10 @@ class RowhammerKitchenGUI:
             return
 
         self.actions_remaining -= 1
+        self.recent_hammers.append(row_chosen)
+        if len(self.recent_hammers) > 8:
+            self.recent_hammers.pop(0)
+
         self._update_actions_hud()
 
         # Animate chef hammering the freezer shelf
@@ -284,13 +294,17 @@ class RowhammerKitchenGUI:
             fg="#f39c12"
         )
 
-        # Check adjacency to target row
-        if abs(row_chosen - self.target_row) == 1:
+        # Check Double-Sided Rowhammer adjacency
+        if row_chosen in (self.sandwich_a, self.sandwich_b):
+            other_side = self.sandwich_b if row_chosen == self.sandwich_a else self.sandwich_a
+            is_double_sided = other_side in self.recent_hammers[-4:]
+
             target_items = self.shelves[self.target_row]
             fallen_this_turn = []
+            drop_prob = 0.25 if is_double_sided else 0.03
 
             for item in target_items[:]:
-                if random.random() < 0.10:
+                if random.random() < drop_prob:
                     target_items.remove(item)
                     fallen_this_turn.append(item)
 
@@ -314,13 +328,19 @@ class RowhammerKitchenGUI:
                         fg="#e67e22"
                     )
             else:
-                self.feedback_label.config(
-                    text="⚡ Strong vibrations sent to neighboring shelf, but nothing broke loose this turn.", 
-                    fg="#f1c40f"
-                )
+                if is_double_sided:
+                    self.feedback_label.config(
+                        text=f"⚡⚡ DOUBLE-SIDED ROWHAMMER ACTIVE! Rapidly alternating Rows {self.sandwich_a} & {self.sandwich_b} creates intense disturbance!", 
+                        fg="#e67e22"
+                    )
+                else:
+                    self.feedback_label.config(
+                        text=f"⚡ Single-sided vibration near Row {row_chosen}! Shelf rattles, but double-sided hammering from BOTH flanking even rows is needed!", 
+                        fg="#f1c40f"
+                    )
         else:
             self.feedback_label.config(
-                text=f"A dull thud echoes from Row {row_chosen}. Too far away to disturb sensitive shelves.", 
+                text=f"A dull thud echoes from Row {row_chosen}. Too far away to disturb protected shelves.", 
                 fg="#bdc3c7"
             )
 

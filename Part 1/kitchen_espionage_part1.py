@@ -32,16 +32,17 @@ class InteractiveKitchen:
     def __init__(self, root):
         self.root = root
         self.root.title("Kitchen Espionage - Flush+Reload Attack")
-        self.root.geometry("650x550")
+        self.root.geometry("660x600")
         self.root.configure(bg="#2c3e50")
 
-        # Core Game State
-        self.all_ingredients = list(range(10))
-        self.secret_ingredients = random.sample(self.all_ingredients, 4)
+        # Core Game State (Expanded Address Space: 20 ingredients, 6 secret VIP items)
+        self.all_ingredients = list(range(20))
+        self.secret_ingredients = random.sample(self.all_ingredients, 6)
         
         # The cache state (what is currently on the prep counter)
-        # We start it with random garbage to force the student to "Flush" it first
         self.prep_counter = random.sample(self.all_ingredients, 6)
+        self.max_probes = 18
+        self.probes_remaining = 18
 
         # --- 1. VISUAL CANVAS ---
         self.canvas = tk.Canvas(root, width=600, height=200, bg="#ecf0f1", highlightthickness=0)
@@ -70,10 +71,13 @@ class InteractiveKitchen:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # --- 2. STATUS HUD ---
-        self.status_label = tk.Label(root, text="System Ready. Waiting for attacker action...", bg="#2c3e50", fg="#f1c40f", font=("Arial", 11, "bold"))
-        self.status_label.pack(pady=5)
+        self.budget_label = tk.Label(root, text="Probe Budget Remaining: 18 / 18", bg="#2c3e50", fg="#2ecc71", font=("Arial", 11, "bold"))
+        self.budget_label.pack(pady=2)
+
+        self.status_label = tk.Label(root, text="System Ready. Waiting for attacker action...", bg="#2c3e50", fg="#f1c40f", font=("Arial", 10, "bold"))
+        self.status_label.pack(pady=3)
         
-        self.timer_label = tk.Label(root, text="Last Fetch Latency: -- s", bg="#2c3e50", fg="white", font=("Arial", 12))
+        self.timer_label = tk.Label(root, text="Last Fetch Latency: -- s", bg="#2c3e50", fg="white", font=("Arial", 11))
         self.timer_label.pack()
 
         # --- 3. INTERACTIVE CONTROL PANEL ---
@@ -96,26 +100,26 @@ class InteractiveKitchen:
         # Phase 2: Victim Execution
         self.btn_victim = tk.Button(control_frame, text="2. Trigger Victim (Prep VIP Order)", command=self.trigger_victim, bg="#9b59b6", fg="white", width=30)
         self.btn_victim.grid(row=2, column=0, pady=5, padx=5, sticky="w")
-        tk.Label(control_frame, text="Victim loads the 4 secret items into L1.", bg="#34495e", fg="#bdc3c7").grid(row=2, column=1, sticky="w")
+        tk.Label(control_frame, text="Victim loads 6 secret items into L1.", bg="#34495e", fg="#bdc3c7").grid(row=2, column=1, sticky="w")
 
         # Phase 3: Probe/Reload
         probe_frame = tk.Frame(control_frame, bg="#34495e")
         probe_frame.grid(row=3, column=0, pady=5, padx=5, sticky="w")
-        tk.Label(probe_frame, text="3. Probe Ingredient (0-9):", bg="#34495e", fg="white").pack(side="left")
+        tk.Label(probe_frame, text="3. Probe Ingredient (0-19):", bg="#34495e", fg="white").pack(side="left")
         
-        self.probe_spinbox = tk.Spinbox(probe_frame, from_=0, to=9, width=5, font=("Arial", 10))
+        self.probe_spinbox = tk.Spinbox(probe_frame, from_=0, to=19, width=5, font=("Arial", 10))
         self.probe_spinbox.pack(side="left", padx=5)
         
         self.btn_probe = tk.Button(probe_frame, text="Measure Latency", command=self.probe_ingredient, bg="#3498db", fg="white")
         self.btn_probe.pack(side="left")
-        tk.Label(control_frame, text="Time the fetch to map the cache state.", bg="#34495e", fg="#bdc3c7").grid(row=3, column=1, sticky="w")
+        tk.Label(control_frame, text="Time fetch to detect cache hit (<0.1s).", bg="#34495e", fg="#bdc3c7").grid(row=3, column=1, sticky="w")
 
         # Phase 4: Submit Attack
         submit_frame = tk.Frame(root, bg="#2c3e50")
         submit_frame.pack(pady=10)
-        tk.Label(submit_frame, text="Enter 4 VIP Ingredients (e.g., 0 3 5 8):", bg="#2c3e50", fg="white", font=("Arial", 11)).pack(side="left")
-        self.guess_entry = tk.Entry(submit_frame, width=15, font=("Arial", 12))
-        self.guess_entry.pack(side="left", padx=10)
+        tk.Label(submit_frame, text="Enter 6 VIP Ingredients (e.g., 2 5 7 11 14 18):", bg="#2c3e50", fg="white", font=("Arial", 10)).pack(side="left")
+        self.guess_entry = tk.Entry(submit_frame, width=16, font=("Arial", 11))
+        self.guess_entry.pack(side="left", padx=8)
         self.btn_submit = tk.Button(submit_frame, text="SUBMIT ATTACK", command=self.verify_attack, bg="#2ecc71", fg="white", font=("Arial", 10, "bold"))
         self.btn_submit.pack(side="left")
 
@@ -144,8 +148,30 @@ class InteractiveKitchen:
             time.sleep(0.02)
         self.status_label.config(text="Victim Executed: VIP order placed on prep counter.")
 
+    def _update_budget_hud(self):
+        rem = self.probes_remaining
+        color = "#2ecc71" if rem > 8 else "#f39c12" if rem > 3 else "#e74c3c"
+        self.budget_label.config(text=f"Probe Budget Remaining: {rem} / {self.max_probes}", fg=color)
+
+    def reset_round(self):
+        self.secret_ingredients = random.sample(self.all_ingredients, 6)
+        self.prep_counter = random.sample(self.all_ingredients, 6)
+        self.probes_remaining = self.max_probes
+        self._update_budget_hud()
+        self.status_label.config(text="Round Reset! Flush the counter and trigger the VIP order to retry.", fg="#f1c40f")
+        self.timer_label.config(text="Last Fetch Latency: -- s")
+
     def probe_ingredient(self):
         """Phase 3: The attacker measures the time it takes to fetch an ingredient."""
+        if self.probes_remaining <= 0:
+            self.status_label.config(text="Out of probes! Chef got suspicious.", fg="#e74c3c")
+            messagebox.showwarning(
+                "Probe Budget Depleted", 
+                "You have used all 18 probes!\nThe Head Chef noticed suspicious activity and rotated the order.\n\nThe round has been reset. Flush the cache to retry!"
+            )
+            self.reset_round()
+            return
+
         try:
             ingredient_id = int(self.probe_spinbox.get())
         except ValueError:
@@ -153,6 +179,9 @@ class InteractiveKitchen:
 
         if ingredient_id not in self.all_ingredients:
             return
+
+        self.probes_remaining -= 1
+        self._update_budget_hud()
 
         self._set_ui_state("disabled")
         start_time = time.time()
@@ -170,7 +199,7 @@ class InteractiveKitchen:
                 time.sleep(0.03)
                 
             elapsed = time.time() - start_time
-            self.timer_label.config(text=f"Last Fetch Latency: {elapsed:.3f} s (FAST)")
+            self.timer_label.config(text=f"Last Fetch Latency: {elapsed:.3f} s (FAST CACHE HIT)")
 
         else:
             self.status_label.config(text=f"Probing {ingredient_id}... Fetching from Freezer (Miss)!")
@@ -180,7 +209,7 @@ class InteractiveKitchen:
                 self.root.update()
                 time.sleep(0.02)
                 
-            time.sleep(0.3) # Simulate grabbing the item
+            time.sleep(0.25) # Simulate grabbing item from deep freezer
             
             for _ in range(40):
                 self.canvas.move("chef", -10, 0)
@@ -188,7 +217,7 @@ class InteractiveKitchen:
                 time.sleep(0.02)
                 
             elapsed = time.time() - start_time
-            self.timer_label.config(text=f"Last Fetch Latency: {elapsed:.3f} s (SLOW)")
+            self.timer_label.config(text=f"Last Fetch Latency: {elapsed:.3f} s (SLOW CACHE MISS)")
             
             # The item is now cached because the attacker fetched it
             self.prep_counter.append(ingredient_id)
@@ -199,10 +228,13 @@ class InteractiveKitchen:
         """Phase 4: Verify the student's submission."""
         guess_str = self.guess_entry.get().strip()
         try:
-            # Parse the user's string into a list of integers
             user_guess = sorted([int(x) for x in guess_str.replace(",", " ").split()])
         except ValueError:
-            messagebox.showerror("Error", "Please enter 4 numbers separated by spaces.")
+            messagebox.showerror("Error", "Please enter 6 numbers separated by spaces.")
+            return
+
+        if len(user_guess) != 6:
+            messagebox.showerror("Error", f"Please enter exactly 6 numbers separated by spaces (you entered {len(user_guess)}).")
             return
 
         secret = sorted(self.secret_ingredients)
@@ -211,13 +243,16 @@ class InteractiveKitchen:
             self.status_label.config(text="ACCESS GRANTED! Secret extracted successfully.", fg="#2ecc71")
             messagebox.showinfo(
                 "Victory!", 
-                f"Part 1 Cleared!\nYou successfully mapped the cache and extracted the VIP order: {secret}\n\nClick OK to start Part 2 (CPU Pipeline Simulation)!"
+                f"Part 1 Cleared!\nYou successfully mapped the cache and extracted all 6 VIP ingredients: {secret}\n\nClick OK to start Part 2 (CPU Pipeline Simulation)!"
             )
             self.root.destroy()
             self.launch_part_2()
         else:
             self.status_label.config(text="ACCESS DENIED! Wrong recipe.", fg="#e74c3c")
-            messagebox.showerror("Failed", "Access Denied.\nThe timing footprint does not match the VIP's order. Try flushing the cache and measuring again.")
+            messagebox.showerror(
+                "Failed", 
+                "Access Denied.\nThe timing footprint does not match the VIP's order.\nRemember to FLUSH first, TRIGGER VICTIM, and record all latencies < 0.1s!"
+            )
 
     def launch_part_2(self):
         """Launches Part 2 (kitchen_espionage_part2.py) once Part 1 is successfully completed."""
