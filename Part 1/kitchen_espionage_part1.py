@@ -32,7 +32,7 @@ class InteractiveKitchen:
     def __init__(self, root):
         self.root = root
         self.root.title("Kitchen Espionage - Flush+Reload Attack")
-        self.root.geometry("660x600")
+        self.root.geometry("690x610")
         self.root.configure(bg="#2c3e50")
 
         # Core Game State (Expanded Address Space: 20 ingredients, 6 secret VIP items)
@@ -86,11 +86,13 @@ class InteractiveKitchen:
         
         header_frame = tk.Frame(control_frame, bg="#34495e")
         header_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="ew")
-        tk.Label(header_frame, text="ATTACKER CONTROL PANEL", bg="#34495e", fg="white", font=("Arial", 12, "bold")).pack(side="left")
-        self.btn_help = tk.Button(header_frame, text="📋 Instructions", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 9, "bold"))
-        self.btn_help.pack(side="right")
+        tk.Label(header_frame, text="ATTACKER CONTROL PANEL", bg="#34495e", fg="white", font=("Arial", 11, "bold")).pack(side="left")
         self.btn_audio = tk.Button(header_frame, text="🔊 Music: ON", command=self.toggle_music, bg="#2980b9", fg="white", font=("Arial", 9, "bold"))
-        self.btn_audio.pack(side="right", padx=(0, 6))
+        self.btn_audio.pack(side="right", padx=(4, 0))
+        self.btn_help = tk.Button(header_frame, text="📋 Briefing", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 9, "bold"))
+        self.btn_help.pack(side="right", padx=(4, 0))
+        self.btn_tech = tk.Button(header_frame, text="🔬 Section B: Tech Deep Dive", command=self.show_tech_details, bg="#8e44ad", fg="white", font=("Arial", 9, "bold"))
+        self.btn_tech.pack(side="right", padx=(4, 0))
 
         # Phase 1: Flush
         self.btn_flush = tk.Button(control_frame, text="1. Flush Cache (Clear Counter)", command=self.flush_cache, bg="#e67e22", fg="white", width=30)
@@ -283,20 +285,88 @@ class InteractiveKitchen:
         """Displays interactive mission instructions in a dialog."""
         msg = (
             "🎯 MISSION OBJECTIVE:\n"
-            "Extract the 4 secret VIP ingredients (chosen from 0-9) using a Flush+Reload cache attack!\n\n"
+            "Extract the 6 secret VIP ingredients (chosen from addresses 0-19) using a Flush+Reload cache attack!\n\n"
             "⚙️ HARDWARE ANALOGY:\n"
-            "• Prep Counter = L1 Cache (Fast, low-latency access)\n"
-            "• Walk-In Freezer = Main Memory (Slow DRAM, high-latency access)\n"
+            "• Prep Counter = L1 Cache (Fast, low-latency access, ~0.06s)\n"
+            "• Walk-In Freezer = Main Memory (Slow DRAM, high-latency access, ~1.8s)\n"
             "• Chef = CPU executing memory fetch operations\n\n"
             "📋 4 ATTACK STEPS:\n"
-            "1. Flush Cache: Clear the prep counter so no stale data is cached.\n"
-            "2. Trigger Victim: VIP loads their 4 secret ingredients onto the prep counter.\n"
-            "3. Measure Latency: Test ingredients 0 through 9 one by one:\n"
+            "1. Flush Cache: Clear the prep counter so no stale data remains cached.\n"
+            "2. Trigger Victim: VIP places their 6 secret ingredients onto the prep counter.\n"
+            "3. Measure Latency: Test ingredients (0 to 19). You have an 18-probe budget!\n"
             "   - FAST latency (< 0.1s) -> CACHE HIT! This is a secret VIP ingredient!\n"
             "   - SLOW latency (> 1.0s) -> CACHE MISS! Not ordered by VIP (fetched from freezer).\n"
-            "4. Submit Attack: Enter the 4 FAST numbers (e.g. '1 3 5 8') and click SUBMIT ATTACK!"
+            "4. Submit Attack: Enter all 6 identified numbers (e.g. '2 5 7 11 14 18') and click SUBMIT ATTACK!\n\n"
+            "🔬 For in-depth x86 hardware implementation details (clflush, rdtsc, mfence), click 'Section B: Tech Deep Dive'!"
         )
         messagebox.showinfo("Part 1 - Mission Briefing & Instructions", msg)
+
+    def show_tech_details(self):
+        """Displays Section B: In-depth technical breakdown of Flush+Reload on real hardware."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🔬 Section B: Hardware Architecture & Flush+Reload Deep Dive")
+        dialog.geometry("690x570")
+        dialog.configure(bg="#1a252f")
+        dialog.transient(self.root)
+
+        self.root.update_idletasks()
+        rx = self.root.winfo_x()
+        ry = self.root.winfo_y()
+        rw = self.root.winfo_width()
+        rh = self.root.winfo_height()
+        dialog.geometry(f"+{rx + max(0, (rw - 690) // 2)}+{ry + max(0, (rh - 570) // 2)}")
+
+        header = tk.Frame(dialog, bg="#2c3e50", pady=12)
+        header.pack(fill="x")
+        tk.Label(header, text="🔬 SECTION B: FLUSH+RELOAD HARDWARE IMPLEMENTATION", bg="#2c3e50", fg="#f1c40f", font=("Arial", 13, "bold")).pack()
+        tk.Label(header, text="How 'Clearing the Counter' and Timing Attacks Work on Real Silicon", bg="#2c3e50", fg="#ecf0f1", font=("Arial", 9)).pack()
+
+        text_box = tk.Text(dialog, bg="#2c3e50", fg="#ecf0f1", font=("Consolas", 9), padx=15, pady=15, wrap="word", relief="flat")
+        text_box.pack(fill="both", expand=True, padx=20, pady=12)
+
+        tech_doc = (
+            "========================================================================\n"
+            " 1. HOW 'CLEARING THE COUNTER' (FLUSH) WORKS ON REAL HARDWARE\n"
+            "========================================================================\n"
+            "In our kitchen analogy, 'clearing the counter' means emptying the cache.\n"
+            "In real x86 systems, an unprivileged user process executes the instruction:\n\n"
+            "      clflush [virtual_address]    (or clflushopt)\n\n"
+            "• What clflush actually does:\n"
+            "  1. It evicts the 64-byte cache line containing that memory address from ALL\n"
+            "     cache levels (L1 Data, L2, and shared L3/LLC - Last Level Cache).\n"
+            "  2. It writes back modified (dirty) data to DRAM and invalidates the cache tag.\n"
+            "  3. Any subsequent memory access MUST fetch directly from high-latency DRAM.\n\n"
+            "• Evict+Reload (When clflush is blocked or on ARMv7):\n"
+            "  If the OS or architecture restricts clflush, the attacker allocates an\n"
+            "  'Eviction Set' (memory buffers mapped to the exact same cache sets). By\n"
+            "  accessing these lines in a loop, the CPU's hardware LRU (Least Recently Used)\n"
+            "  replacement policy naturally evicts the victim's line out to DRAM.\n\n"
+            "========================================================================\n"
+            " 2. SHARED MEMORY: WHY CAN THE ATTACKER ACCESS THE VICTIM'S DATA?\n"
+            "========================================================================\n"
+            "Flush+Reload requires shared memory. This occurs legitimately via:\n"
+            "  • Shared Dynamic Libraries (.so / .dll files, e.g. OpenSSL, libc).\n"
+            "  • Kernel Samepage Merging (KSM) / memory deduplication in virtualization.\n"
+            "Even though virtual addresses differ, the OS page tables map both processes\n"
+            "to the EXACT SAME PHYSICAL DRAM FRAME. When the attacker flushes their\n"
+            "virtual address, the shared physical line is evicted for the victim too!\n\n"
+            "========================================================================\n"
+            " 3. HIGH-RESOLUTION TIMING MEASUREMENT (rdtsc & FENCES)\n"
+            "========================================================================\n"
+            "In C/assembly, the attacker times memory fetches using the CPU cycle counter:\n\n"
+            "      mfence; lfence;           // Serialization barrier: wait for prior instructions\n"
+            "      uint64_t t1 = __rdtsc();  // Read Time-Stamp Counter\n"
+            "      maccess(target_addr);     // Fetch target cache line\n"
+            "      lfence;                   // Wait for memory fetch to finish\n"
+            "      uint64_t delta = __rdtsc() - t1;\n\n"
+            "• Hardware Decision Threshold:\n"
+            "  - L1/L2/L3 Hit : ~40 - 80 cycles   -> VICTIM ACCESSED IT!\n"
+            "  - DRAM Miss    : ~200 - 350 cycles -> VICTIM DID NOT ACCESS IT.\n"
+        )
+        text_box.insert("1.0", tech_doc)
+        text_box.config(state="disabled")
+
+        tk.Button(dialog, text="Close Deep Dive", command=dialog.destroy, bg="#34495e", fg="white", font=("Arial", 10)).pack(pady=(0, 10))
 
     def _set_ui_state(self, state):
         self.btn_flush.config(state=state)

@@ -32,7 +32,7 @@ class RowhammerKitchenGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Kitchen Espionage - Part 3 (Rowhammer Attack)")
-        self.root.geometry("700x660")
+        self.root.geometry("720x670")
         self.root.configure(bg="#2c3e50")
 
         self.pantry_pool = [
@@ -73,7 +73,7 @@ class RowhammerKitchenGUI:
         # --- 2. STATUS HUD ---
         self.actions_label = tk.Label(
             root, 
-            text="Actions Remaining: 35 / 35", 
+            text="Actions Remaining: 20 / 20", 
             bg="#2c3e50", 
             fg="#2ecc71", 
             font=("Arial", 13, "bold")
@@ -110,18 +110,8 @@ class RowhammerKitchenGUI:
             text="ROWHAMMER CONTROL PANEL", 
             bg="#34495e", 
             fg="white", 
-            font=("Arial", 12, "bold")
+            font=("Arial", 11, "bold")
         ).pack(side="left")
-
-        self.btn_help = tk.Button(
-            header_frame, 
-            text="📋 Instructions", 
-            command=self.show_instructions, 
-            bg="#16a085", 
-            fg="white", 
-            font=("Arial", 9, "bold")
-        )
-        self.btn_help.pack(side="right")
 
         self.btn_audio = tk.Button(
             header_frame,
@@ -131,7 +121,27 @@ class RowhammerKitchenGUI:
             fg="white",
             font=("Arial", 9, "bold")
         )
-        self.btn_audio.pack(side="right", padx=(0, 6))
+        self.btn_audio.pack(side="right", padx=(4, 0))
+
+        self.btn_help = tk.Button(
+            header_frame, 
+            text="📋 Briefing", 
+            command=self.show_instructions, 
+            bg="#16a085", 
+            fg="white", 
+            font=("Arial", 9, "bold")
+        )
+        self.btn_help.pack(side="right", padx=(4, 0))
+
+        self.btn_tech = tk.Button(
+            header_frame,
+            text="🔬 Section B: Tech Deep Dive",
+            command=self.show_tech_details,
+            bg="#8e44ad",
+            fg="white",
+            font=("Arial", 9, "bold")
+        )
+        self.btn_tech.pack(side="right", padx=(4, 0))
 
         # Row Selection & Hammer Action
         hammer_frame = tk.Frame(ctrl_frame, bg="#34495e")
@@ -252,8 +262,8 @@ class RowhammerKitchenGUI:
         self.shelves[self.target_row].append("The Security Access List")
 
         self.accessible_rows = [i for i in range(2, 20, 2)]
-        self.max_actions = 26
-        self.actions_remaining = 26
+        self.max_actions = 20
+        self.actions_remaining = 20
         self.access_list_fallen = False
         self.game_over = False
 
@@ -416,21 +426,93 @@ class RowhammerKitchenGUI:
 
     def show_instructions(self):
         msg = (
-            "🎯 MISSION OBJECTIVE (ROWHAMMER ATTACK):\n"
+            "🎯 MISSION OBJECTIVE (DOUBLE-SIDED ROWHAMMER ATTACK):\n"
             "Gain access to the locked pantry by knocking the Security Access List off an odd shelf.\n\n"
-            "⚙️ HARDWARE ANALOGY:\n"
+            "⚙️ HARDWARE ANALOGY & CRITICAL CONCEPT:\n"
             "• Freezer Rack = DRAM Bank rows.\n"
-            "• Accessible Rows = Memory rows you have permission to access (Even rows 2, 4, 6... 18).\n"
-            "• Target Row = An adjacent protected DRAM row containing sensitive data (Odd rows 1, 3, 5... 19).\n"
-            "• Hammering = Repeated rapid activations of an adjacent row induce electrical disturbance (vibrations) causing bit-flips (falling items)!\n\n"
-            "📋 HOW TO PLAY:\n"
-            "1. Select an even row (2-18) from the dropdown/spinbox.\n"
-            "2. Click '🔨 Hammer Selected Row'. If it is adjacent to the target row (±1 distance), vibrations shake items off the neighboring shelf.\n"
-            "3. Watch the feedback label for clatters or fluttering papers.\n"
-            "4. When you believe the Security Access List has fallen, click '👨‍🍳 Ask Head Chef to Verify Access'.\n"
-            "5. BEWARE: You have 35 actions total. Failed checks cost 3 actions penalty. If actions reach 0, the Prep Cook resets the shelves!"
+            "• Aggressor Rows = Even rows (2-18) you have permission to rapidly activate.\n"
+            "• Victim Row = The adjacent unaccessed odd row where BIT-FLIPS OCCUR!\n"
+            "  *IMPORTANT*: Bits flip in the VICTIM row, NOT the attacker's row!\n"
+            "• Double-Sided Hammering = Alternately activating BOTH sandwich rows (Target-1 and Target+1)\n"
+            "  induces 25% disturbance bit-flips, shaking items free!\n\n"
+            "📋 3-STEP ATTACK STRATEGY:\n"
+            "1. PROBE (Skip Search): Test every other even row (e.g. 2, 6, 10, 14, 18) to save actions.\n"
+            "2. ISOLATE SANDWICH: When you detect a single-sided vibration near Row X, test the neighboring even rows (X-2 or X+2) to find the sandwich pair.\n"
+            "3. HAMMER BOTH SIDES: Alternate hammering both flanking rows to trigger DOUBLE-SIDED ROWHAMMER!\n"
+            "4. VERIFY: When 'THE SECURITY ACCESS LIST 📄' falls, click '👨‍🍳 Ask Head Chef to Verify Access'!\n\n"
+            "⚠️ TIGHT BUDGET: 20 actions total. Failed checks penalize -3 actions. Click 'Section B: Tech Deep Dive' for full hardware details!"
         )
         messagebox.showinfo("Part 3 - Mission Briefing & Instructions", msg)
+
+    def show_tech_details(self):
+        """Displays Section B: In-depth technical breakdown of Rowhammer and physical DRAM disturbance."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🔬 Section B: Hardware Architecture & Rowhammer Deep Dive")
+        dialog.geometry("690x580")
+        dialog.configure(bg="#1a252f")
+        dialog.transient(self.root)
+
+        self.root.update_idletasks()
+        rx = self.root.winfo_x()
+        ry = self.root.winfo_y()
+        rw = self.root.winfo_width()
+        rh = self.root.winfo_height()
+        dialog.geometry(f"+{rx + max(0, (rw - 690) // 2)}+{ry + max(0, (rh - 580) // 2)}")
+
+        header = tk.Frame(dialog, bg="#2c3e50", pady=12)
+        header.pack(fill="x")
+        tk.Label(header, text="🔬 SECTION B: DRAM ROWHAMMER HARDWARE IMPLEMENTATION", bg="#2c3e50", fg="#f1c40f", font=("Arial", 13, "bold")).pack()
+        tk.Label(header, text="Capacitor Physics, Wordline Crosstalk, and Page Table Entry Exploitation", bg="#2c3e50", fg="#ecf0f1", font=("Arial", 9)).pack()
+
+        text_box = tk.Text(dialog, bg="#2c3e50", fg="#ecf0f1", font=("Consolas", 9), padx=15, pady=15, wrap="word", relief="flat")
+        text_box.pack(fill="both", expand=True, padx=20, pady=12)
+
+        tech_doc = (
+            "========================================================================\n"
+            " 1. DRAM PHYSICS: WHY DO BITS FLIP IN NEIGHBORING ROWS?\n"
+            "========================================================================\n"
+            "DRAM stores individual bits as minute electrical charges in microscopic\n"
+            "capacitors (1 transistor + 1 capacitor per bit cell). To read a row, the\n"
+            "memory controller activates a physical copper wire called a WORDLINE with high voltage.\n\n"
+            "As semiconductor fabrication shrunk below 20nm, DRAM rows were packed just\n"
+            "nanometers apart. When an attacker rapidly activates and precharges an\n"
+            "AGGRESSOR wordline hundreds of thousands of times per refresh interval (64ms):\n"
+            "  1. Parasitic Capacitive Coupling: Rapid voltage swings induce electromagnetic\n"
+            "     cross-talk on adjacent wordlines.\n"
+            "  2. Accelerated Charge Leakage: The neighboring unaccessed VICTIM row's\n"
+            "     capacitors bleed charge before the scheduled DRAM refresh command arrives.\n"
+            "  3. Bit-Flip: The voltage level drops below the sense amplifier threshold,\n"
+            "     spontaneously flipping a 1 -> 0 or 0 -> 1!\n\n"
+            "========================================================================\n"
+            " 2. CRITICAL CLARIFICATION: WHERE DO BITS FLIP?\n"
+            "========================================================================\n"
+            "  • Aggressor Row (Attacker's row) : Reads normally; bits DO NOT flip here.\n"
+            "  • Victim Row (Neighboring row)   : BITS FLIP HERE without being accessed!\n"
+            "  • Double-Sided Hammering         : Squeezing the victim row between TWO\n"
+            "    aggressor rows (Row N-1 and Row N+1) causes cumulative electrical leakage,\n"
+            "    dramatically accelerating bit-flips compared to single-sided attacks.\n\n"
+            "========================================================================\n"
+            " 3. HOW THE ATTACKER EXPLOITS A BIT-FLIP (PRIVILEGE ESCALATION)\n"
+            "========================================================================\n"
+            "A bit-flip causes random data corruption—how does an attacker gain root/admin?\n\n"
+            "• The Google Project Zero Page Table Entry (PTE) Exploit:\n"
+            "  1. Memory Spraying: The attacker process allocates millions of Page Table\n"
+            "     Entries (PTEs) across physical memory until one lands in the victim row.\n"
+            "  2. Rowhammer Trigger: The attacker hammers the adjacent rows until a bit flips\n"
+            "     inside the Physical Page Number (PPN) field of the victim's PTE.\n"
+            "  3. Kernel Takeover: The flipped bit causes the attacker's virtual page to\n"
+            "     point directly to a physical page table itself! The unprivileged user\n"
+            "     can now write directly to page tables, granting arbitrary read/write access\n"
+            "     to ALL physical RAM, completely bypassing OS kernel protection (Ring 0)!\n\n"
+            "• Cryptographic Fault Attacks (Bellcore):\n"
+            "  Flipping 1 bit during an RSA private-key signature generation produces a faulty\n"
+            "  signature. With just one faulty signature and one valid signature, the attacker\n"
+            "  factors the modulus N = p * q using gcd(s^2 - s'^2, N), stealing the private key!\n"
+        )
+        text_box.insert("1.0", tech_doc)
+        text_box.config(state="disabled")
+
+        tk.Button(dialog, text="Close Deep Dive", command=dialog.destroy, bg="#34495e", fg="white", font=("Arial", 10)).pack(pady=(0, 10))
 
     def toggle_music(self):
         if self.music_on:

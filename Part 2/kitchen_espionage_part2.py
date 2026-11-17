@@ -68,7 +68,7 @@ class KitchenPipelineGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Kitchen Espionage - Part 2 (Pipeline & Cache Latency)")
-        self.root.geometry("740x720")
+        self.root.geometry("780x760")
         self.root.configure(bg="#2c3e50")
 
         # Load program instructions
@@ -128,8 +128,9 @@ class KitchenPipelineGUI:
         ]
 
         self.stage_widgets = {}
+        self.stage_boxes = {}
         for idx, (abbr, name, attr) in enumerate(stages):
-            box = tk.Frame(pipe_outer, bg="#2c3e50", bd=2, relief="groove", width=120, height=75)
+            box = tk.Frame(pipe_outer, bg="#2c3e50", bd=2, relief="groove", width=125, height=75)
             box.grid(row=0, column=idx * 2, padx=4, pady=4, sticky="nsew")
             box.grid_propagate(False)
 
@@ -143,6 +144,7 @@ class KitchenPipelineGUI:
             inst_lbl.pack(expand=True)
 
             self.stage_widgets[attr] = inst_lbl
+            self.stage_boxes[attr] = (box, title_lbl)
 
             if idx < len(stages) - 1:
                 arrow = tk.Label(pipe_outer, text="➜", bg="#34495e", fg="#e67e22", font=("Arial", 14, "bold"))
@@ -166,22 +168,25 @@ class KitchenPipelineGUI:
 
         # --- 5. CONTROL PANEL ---
         ctrl_frame = tk.Frame(root, bg="#34495e", bd=2, relief="groove", padx=10, pady=8)
-        ctrl_frame.pack(pady=10, fill="x", padx=20)
+        ctrl_frame.pack(pady=10, fill="x", padx=15)
 
-        self.btn_step = tk.Button(ctrl_frame, text="▶ Step Next Cycle", command=self.step_cycle, bg="#3498db", fg="white", font=("Arial", 10, "bold"), width=18)
-        self.btn_step.pack(side="left", padx=10)
+        self.btn_step = tk.Button(ctrl_frame, text="▶ Step Cycle", command=self.step_cycle, bg="#3498db", fg="white", font=("Arial", 9, "bold"), width=13)
+        self.btn_step.pack(side="left", padx=4)
 
-        self.btn_auto = tk.Button(ctrl_frame, text="⏩ Auto Run", command=self.toggle_auto_run, bg="#2ecc71", fg="white", font=("Arial", 10, "bold"), width=16)
-        self.btn_auto.pack(side="left", padx=10)
+        self.btn_auto = tk.Button(ctrl_frame, text="⏩ Auto Run", command=self.toggle_auto_run, bg="#2ecc71", fg="white", font=("Arial", 9, "bold"), width=12)
+        self.btn_auto.pack(side="left", padx=4)
 
-        self.btn_reset = tk.Button(ctrl_frame, text="🔄 Reset", command=self.reset_pipeline, bg="#e74c3c", fg="white", font=("Arial", 10), width=12)
-        self.btn_reset.pack(side="left", padx=10)
+        self.btn_reset = tk.Button(ctrl_frame, text="🔄 Reset", command=self.reset_pipeline, bg="#e74c3c", fg="white", font=("Arial", 9), width=9)
+        self.btn_reset.pack(side="left", padx=4)
 
-        self.btn_help = tk.Button(ctrl_frame, text="📋 Instructions", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 10, "bold"), width=14)
-        self.btn_help.pack(side="left", padx=10)
+        self.btn_help = tk.Button(ctrl_frame, text="📋 Briefing", command=self.show_instructions, bg="#16a085", fg="white", font=("Arial", 9, "bold"), width=11)
+        self.btn_help.pack(side="left", padx=4)
 
-        self.btn_audio = tk.Button(ctrl_frame, text="🔊 Music: ON", command=self.toggle_music, bg="#2980b9", fg="white", font=("Arial", 10, "bold"), width=13)
-        self.btn_audio.pack(side="left", padx=10)
+        self.btn_tech = tk.Button(ctrl_frame, text="🔬 Tech Deep Dive", command=self.show_tech_details, bg="#8e44ad", fg="white", font=("Arial", 9, "bold"), width=16)
+        self.btn_tech.pack(side="left", padx=4)
+
+        self.btn_audio = tk.Button(ctrl_frame, text="🔊 Music: ON", command=self.toggle_music, bg="#2980b9", fg="white", font=("Arial", 9, "bold"), width=11)
+        self.btn_audio.pack(side="left", padx=4)
 
         self.is_auto = False
         self.completed = False
@@ -367,7 +372,7 @@ class KitchenPipelineGUI:
         self.cycle_label.config(text=f"Cycle: {self.cycle} | PC: {self.pc}")
         self.status_label.config(text=msg)
 
-        # Update stage labels
+        # Update stage labels and visual stage highlights
         stages_map = {
             "fetch": self.fetch,
             "decode": self.decode,
@@ -376,15 +381,27 @@ class KitchenPipelineGUI:
             "writeback": self.writeback,
         }
 
+        stage_colors = {
+            "fetch": "#2980b9",
+            "decode": "#d35400",
+            "execute": "#8e44ad",
+            "memory": "#27ae60",
+            "writeback": "#f39c12",
+        }
+
         for attr, inst in stages_map.items():
             lbl = self.stage_widgets[attr]
+            box, title_lbl = self.stage_boxes[attr]
             lbl.config(text=str(inst))
             if inst == nop:
                 lbl.config(fg="#7f8c8d")
+                title_lbl.config(bg="#7f8c8d")
             elif inst == halt:
                 lbl.config(fg="#e74c3c")
+                title_lbl.config(bg="#c0392b")
             else:
                 lbl.config(fg="#f1c40f")
+                title_lbl.config(bg=stage_colors.get(attr, "#1abc9c"))
 
         # Update register labels
         self.pc_lbl.config(text=f"PC: {self.pc}")
@@ -407,12 +424,154 @@ class KitchenPipelineGUI:
             "• Prep Counter (L1 Cache) = 1.0s delay (Fast hit)\n"
             "• Kitchen Pantry (L2 Cache) = 3.0s delay (Medium hit)\n"
             "• Walk-In Freezer (Main DRAM) = 5.0s delay (Slow miss)\n\n"
-            "🎮 CONTROLS:\n"
-            "• '▶ Step Next Cycle': Advance 1 clock cycle to inspect stages & registers.\n"
-            "• '⏩ Auto Run': Automatically step through all cycles until program halts.\n"
-            "• Completing the program automatically starts Part 3 (Rowhammer Level)!"
+            "🎮 INTERACTIVE CHECKPOINT:\n"
+            "• You CANNOT simply bypass Part 2 with Auto Run!\n"
+            "• Upon completing execution, you must calculate total memory latency and identify architectural bottlenecks in Section B to unlock Part 3!"
         )
         messagebox.showinfo("Part 2 - Mission Briefing & Instructions", msg)
+
+    def show_tech_details(self):
+        """Displays Section B: In-depth technical architecture breakdown."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🔬 Section B: Hardware Architecture & Pipeline Deep Dive")
+        dialog.geometry("680x560")
+        dialog.configure(bg="#1a252f")
+        dialog.transient(self.root)
+
+        self.root.update_idletasks()
+        rx = self.root.winfo_x()
+        ry = self.root.winfo_y()
+        rw = self.root.winfo_width()
+        rh = self.root.winfo_height()
+        dialog.geometry(f"+{rx + max(0, (rw - 680) // 2)}+{ry + max(0, (rh - 560) // 2)}")
+
+        header = tk.Frame(dialog, bg="#2c3e50", pady=12)
+        header.pack(fill="x")
+        tk.Label(header, text="🔬 SECTION B: HARDWARE ARCHITECTURE DEEP DIVE", bg="#2c3e50", fg="#9b59b6", font=("Arial", 13, "bold")).pack()
+        tk.Label(header, text="Instruction Pipelining, Hazards, and the Von Neumann Memory Wall", bg="#2c3e50", fg="#ecf0f1", font=("Arial", 9)).pack()
+
+        text_box = tk.Text(dialog, bg="#2c3e50", fg="#ecf0f1", font=("Consolas", 9), padx=15, pady=15, wrap="word", relief="flat")
+        text_box.pack(fill="both", expand=True, padx=20, pady=12)
+
+        tech_doc = (
+            "========================================================================\n"
+            " 1. THE CLASSICAL 5-STAGE RISC PIPELINE (MIPS / RISC-V)\n"
+            "========================================================================\n"
+            "In an unpipelined CPU, each instruction takes 5 clock cycles before the next\n"
+            "instruction can begin (CPI = 5). Pipelining overlaps execution so that\n"
+            "ideally 1 instruction completes every single clock cycle (CPI -> 1):\n\n"
+            "  1. IF (Instruction Fetch) : Reads 32-bit machine word from I-Cache/RAM at PC.\n"
+            "  2. DE (Decode / RegFetch) : Decodes opcode/funct and reads source registers.\n"
+            "  3. EX (Execute / ALU)     : Performs arithmetic, address calculation, or branch test.\n"
+            "  4. ME (Memory Access)     : Accesses D-Cache or DRAM for load/store instructions.\n"
+            "  5. WB (Register Writeback): Writes ALU or loaded memory result to destination reg.\n\n"
+            "========================================================================\n"
+            " 2. THE MEMORY WALL & STORAGE HIERARCHY BOTTLENECK\n"
+            "========================================================================\n"
+            "While CPU logic operates at 3-5 GHz (sub-nanosecond cycle times), physical\n"
+            "DRAM capacitors require 50-100ns to activate wordlines and charge bitlines.\n"
+            "This creates a 200+ cycle latency penalty known as the 'Memory Wall'.\n\n"
+            "To hide this latency, modern processors use a hierarchical cache structure:\n"
+            "  • L1 Cache (Prep Counter)   : ~4 cycles (~1ns)   - Smallest, fastest, per-core.\n"
+            "  • L2 Cache (Kitchen Pantry) : ~12-14 cycles      - Medium size, per-core.\n"
+            "  • L3 / LLC (Shared Cache)   : ~40-60 cycles      - Large, shared across all cores.\n"
+            "  • Main Memory (Freezer)     : ~200+ cycles (50ns)- Huge off-chip DRAM.\n\n"
+            "========================================================================\n"
+            " 3. PIPELINE HAZARDS & STALLS\n"
+            "========================================================================\n"
+            "When instructions cannot execute in lockstep, the CPU must insert 'bubbles' (NOPs):\n"
+            "  • Data Hazard (RAW): An instruction depends on a previous instruction's result\n"
+            "    before Writeback occurs (e.g. 'lw r1, 5' followed immediately by 'add r3, r1, r2').\n"
+            "  • Structural Hazard: Two stages compete for the same hardware resource.\n"
+            "  • Control Hazard: Branch target not known until EX/ME stage completes.\n"
+        )
+        text_box.insert("1.0", tech_doc)
+        text_box.config(state="disabled")
+
+        tk.Button(dialog, text="Close Deep Dive", command=dialog.destroy, bg="#34495e", fg="white", font=("Arial", 10)).pack(pady=(0, 10))
+
+    def show_interactive_challenge(self):
+        """Mandatory checkpoint: forces the student to analyze memory latency before advancing."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🧠 Section B Checkpoint: Memory Latency & Pipeline Analysis")
+        dialog.geometry("650x520")
+        dialog.configure(bg="#1a252f")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        self.root.update_idletasks()
+        rx = self.root.winfo_x()
+        ry = self.root.winfo_y()
+        rw = self.root.winfo_width()
+        rh = self.root.winfo_height()
+        dialog.geometry(f"+{rx + max(0, (rw - 650) // 2)}+{ry + max(0, (rh - 520) // 2)}")
+
+        header = tk.Frame(dialog, bg="#2c3e50", pady=12)
+        header.pack(fill="x")
+        tk.Label(header, text="🧠 SECTION B: ARCHITECTURE ANALYSIS CHECKPOINT", bg="#2c3e50", fg="#f1c40f", font=("Arial", 13, "bold")).pack()
+        tk.Label(header, text="Answer the questions below to verify your understanding and unlock Part 3!", bg="#2c3e50", fg="#ecf0f1", font=("Arial", 9)).pack()
+
+        content = tk.Frame(dialog, bg="#34495e", padx=20, pady=15, bd=2, relief="groove")
+        content.pack(fill="both", expand=True, padx=20, pady=12)
+
+        # Question 1: Latency Calculation
+        tk.Label(content, text="1. Memory Hierarchy Latency Calculation:", bg="#34495e", fg="#3498db", font=("Arial", 11, "bold")).pack(anchor="w")
+        q1_text = (
+            "The program executed 3 memory load operations across 3 different storage tiers:\n"
+            "  • 'lw r1 5'  -> Prep Counter (L1 Cache Hit)     = 1.0s\n"
+            "  • 'lw r2 16' -> Kitchen Pantry (L2 Cache Hit)    = 3.0s\n"
+            "  • 'lw r3 17' -> Walk-In Freezer (Main Memory)    = 5.0s\n"
+            "What is the total cumulative memory access delay experienced by the CPU?"
+        )
+        tk.Label(content, text=q1_text, bg="#34495e", fg="#ecf0f1", font=("Arial", 9), justify="left").pack(anchor="w", pady=(3, 6))
+
+        q1_frame = tk.Frame(content, bg="#34495e")
+        q1_frame.pack(anchor="w", pady=(0, 12))
+        tk.Label(q1_frame, text="Enter Total Latency (seconds): ", bg="#34495e", fg="white", font=("Arial", 10, "bold")).pack(side="left")
+        latency_entry = tk.Entry(q1_frame, width=8, font=("Arial", 11, "bold"))
+        latency_entry.pack(side="left")
+
+        # Question 2: Memory Wall & Bottleneck
+        tk.Label(content, text="2. Architectural Bottleneck Identification:", bg="#34495e", fg="#3498db", font=("Arial", 11, "bold")).pack(anchor="w")
+        q2_text = "Why is the Memory Access (ME) stage the primary bottleneck in modern high-performance CPUs?"
+        tk.Label(content, text=q2_text, bg="#34495e", fg="#ecf0f1", font=("Arial", 9), justify="left").pack(anchor="w", pady=(3, 6))
+
+        q2_var = tk.StringVar(value="")
+        choices = [
+            ("A", "Memory Wall: Off-chip DRAM access takes hundreds of clock cycles, while ALU operations take < 1 cycle.", "A"),
+            ("B", "The register file only has 3 registers, forcing the CPU to discard instruction opcodes.", "B"),
+            ("C", "Instructions must always be re-fetched from the Walk-In Freezer on every clock cycle.", "C")
+        ]
+        for opt, txt, val in choices:
+            rb = tk.Radiobutton(content, text=f"({opt}) {txt}", variable=q2_var, value=val, bg="#34495e", fg="white", selectcolor="#2c3e50", font=("Arial", 8), activebackground="#34495e", activeforeground="#f1c40f", wraplength=570, justify="left")
+            rb.pack(anchor="w", pady=2)
+
+        def verify_answers():
+            ans1 = latency_entry.get().strip()
+            ans2 = q2_var.get().strip()
+
+            try:
+                val1 = float(ans1)
+            except ValueError:
+                messagebox.showerror("Error", "Please enter a valid number for Question 1.", parent=dialog)
+                return
+
+            if abs(val1 - 9.0) > 0.05:
+                messagebox.showerror("Question 1 Incorrect", f"Incorrect latency ({ans1}s).\nHint: Sum the three tier latencies: 1.0s + 3.0s + 5.0s.", parent=dialog)
+                return
+
+            if ans2 != "A":
+                messagebox.showerror("Question 2 Incorrect", "Incorrect choice for Question 2.\nHint: Consider the speed difference between on-chip ALU execution and off-chip DRAM access (the Memory Wall).", parent=dialog)
+                return
+
+            messagebox.showinfo("Mastery Verified!", "🎉 Outstanding Work!\n\nYou correctly calculated the 9.0s multi-tier memory latency and identified the Memory Wall bottleneck.\n\nAdvancing to Part 3 (Double-Sided Rowhammer Attack)!", parent=dialog)
+            dialog.destroy()
+            self.root.destroy()
+            self.launch_part_3()
+
+        btn_submit = tk.Button(dialog, text="✔ Verify Answers & Unlock Part 3", command=verify_answers, bg="#27ae60", fg="white", font=("Arial", 11, "bold"), pady=6)
+        btn_submit.pack(pady=10)
 
     def toggle_music(self):
         if self.music_on:
@@ -431,12 +590,7 @@ class KitchenPipelineGUI:
 
     def on_pipeline_completed(self):
         stop_bgm()
-        messagebox.showinfo(
-            "Part 2 Cleared!",
-            "Challenge Cleared!\n\nAll CPU pipeline stages have executed successfully.\n\nClick OK to advance to Part 3 (Rowhammer Attack)!"
-        )
-        self.root.destroy()
-        self.launch_part_3()
+        self.show_interactive_challenge()
 
     def launch_part_3(self):
         stop_bgm()

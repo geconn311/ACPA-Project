@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Espionage: Microarchitectural Hardware Security</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-orange: #f97316;
+      --accent-purple: #a855f7;
+      --accent-yellow: #eab308;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand .tag {
+      background: #312e81;
+      color: #c7d2fe;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    /* Level Selector Tabs */
+    .nav-tabs {
+      display: flex;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+      border: 1px solid var(--card-border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Audio Controller */
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      border-radius: 9999px;
+    }
+
+    .audio-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 9999px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .audio-vol {
+      width: 70px;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1100px;
+      width: 100%;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Section A/B Switcher */
+    .section-pill-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 8px 16px;
+      border-radius: 8px;
+    }
+
+    .pill-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pill-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pill-btn.active {
+      background: var(--accent-purple);
+      color: #fff;
+      border-color: var(--accent-purple);
+    }
+
+    /* Canvas Screen */
+    .canvas-container {
+      background: #e2e8f0;
+      border-radius: 12px;
+      border: 2px solid var(--card-border);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 240px;
+    }
+
+    /* Game HUD & Panels */
+    .hud-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .hud-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .hud-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-yellow);
+    }
+
+    .hud-feedback {
+      font-size: 0.95rem;
+      color: #e2e8f0;
+      font-style: italic;
+    }
+
+    /* Control Panel Cards */
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-header {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 10px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 9px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-orange { background: var(--accent-orange); color: white; }
+    .btn-purple { background: var(--accent-purple); color: white; }
+    .btn-blue { background: #0284c7; color: white; }
+    .btn-green { background: #16a34a; color: white; }
+    .btn-gray { background: #475569; color: white; }
+
+    /* Part 2: Pipeline Stage Visualizer */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .pipe-box {
+      background: #0f172a;
+      border: 2px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .pipe-box.active-if { border-color: var(--accent-blue); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
+    .pipe-box.active-de { border-color: var(--accent-orange); box-shadow: 0 0 12px rgba(249, 115, 22, 0.4); }
+    .pipe-box.active-ex { border-color: var(--accent-purple); box-shadow: 0 0 12px rgba(168, 85, 247, 0.4); }
+    .pipe-box.active-me { border-color: var(--accent-green); box-shadow: 0 0 14px rgba(34, 197, 94, 0.5); }
+    .pipe-box.active-wb { border-color: var(--accent-yellow); box-shadow: 0 0 12px rgba(234, 179, 8, 0.4); }
+
+    .pipe-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+
+    .pipe-inst {
+      font-family: Consolas, monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 6px;
+    }
+
+    /* Shelf Indicators (Part 3) */
+    .shelf-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 6px;
+    }
+
+    .shelf-cell {
+      padding: 8px 4px;
+      text-align: center;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: Consolas, monospace;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .shelf-accessible {
+      background: #15803d;
+      color: #fff;
+    }
+
+    .shelf-locked {
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    .shelf-target {
+      border-color: #ef4444;
+      background: #7f1d1d;
+    }
+
+    /* Technical Deep Dive (Section B) */
+    .tech-panel {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      line-height: 1.6;
+    }
+
+    .tech-panel h2 {
+      color: var(--accent-blue);
+      font-size: 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+    }
+
+    .tech-panel h3 {
+      color: var(--accent-yellow);
+      font-size: 1.05rem;
+      margin-top: 10px;
+    }
+
+    .code-block {
+      background: #030712;
+      border: 1px solid #1f2937;
+      padding: 14px;
+      border-radius: 8px;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 0.85rem;
+      color: #a5f3fc;
+      overflow-x: auto;
+    }
+
+    .interactive-quiz {
+      background: #1e1b4b;
+      border: 1px solid #4338ca;
+      padding: 16px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .interactive-quiz h4 {
+      color: #c7d2fe;
+      font-size: 1rem;
+    }
+
+    /* Victory Modal Screen */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+
+    .modal-box {
+      background: #111827;
+      border: 2px solid #22c55e;
+      border-radius: 14px;
+      max-width: 620px;
+      width: 100%;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+    }
+
+    .modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #facc15;
+      text-align: center;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 16px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Audio Player (Club Penguin Pizza Parlor Music) -->
+  <audio id="bgm" loop preload="auto">
+    <source src="restaurant_music.mp3" type="audio/mpeg">
+    <source src="Part 1/restaurant_music.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <h1>🔪 Kitchen Espionage</h1>
+      <span class="tag">ACPA Education Suite</span>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tab-p1" onclick="switchPart(1)">
+        <span>🔪</span> Part 1: Flush+Reload
+      </button>
+      <button class="tab-btn" id="tab-p2" onclick="switchPart(2)">
+        <span>⏱️</span> Part 2: CPU Pipeline
+      </button>
+      <button class="tab-btn" id="tab-p3" onclick="switchPart(3)">
+        <span>🔨</span> Part 3: Rowhammer
+      </button>
+      <button class="tab-btn" id="tab-victory" onclick="openVictoryModal()">
+        <span>🏆</span> Achievements
+      </button>
+    </div>
+
+    <!-- Audio Controls -->
+    <div class="audio-controls">
+      <button class="audio-btn" id="audioToggleBtn" onclick="toggleAudio()">🔊 Music: ON</button>
+      <input type="range" class="audio-vol" id="audioVolume" min="0" max="1" step="0.05" value="0.10" oninput="setVolume(this.value)" title="Volume Slider (Default 10%)">
+    </div>
+  </header>
+
+  <!-- Main Workspace Content -->
+  <main>
+    <!-- Section Switcher Bar -->
+    <div class="section-pill-bar">
+      <div>
+        <strong id="currentPartHeader">Part 1: Flush+Reload Cache Side-Channel Attack</strong>
+        <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 8px;" id="partSubtitle">Hardware Timing Side-Channel Vulnerabilities</span>
+      </div>
+      <div class="pill-group">
+        <button class="pill-btn active" id="pill-secA" onclick="switchSection('A')">🎮 Section A: Kitchen Game</button>
+        <button class="pill-btn" id="pill-secB" onclick="switchSection('B')">🔬 Section B: Hardware Deep Dive</button>
+      </div>
+    </div>
+
+    <!-- Canvas Visualization (Section A) -->
+    <div id="sectionA-view" style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Interactive Animated Canvas -->
+      <div class="canvas-container">
+        <canvas id="gameCanvas" width="900" height="240"></canvas>
+      </div>
+
+      <!-- HUD Status Bar -->
+      <div class="hud-bar">
+        <div class="hud-stat" id="hudStat1">
+          <span class="hud-label" id="hudLabel1">Probe Budget</span>
+          <span class="hud-val" id="hudVal1" style="color: #22c55e;">18 / 18</span>
+        </div>
+        <div class="hud-stat" id="hudStat2">
+          <span class="hud-label" id="hudLabel2">Last Fetch Latency</span>
+          <span class="hud-val" id="hudVal2">-- s</span>
+        </div>
+        <div class="hud-feedback" id="hudFeedback">
+          System Ready. Flush cache and trigger VIP order to begin attack.
+        </div>
+      </div>
+
+      <!-- PART 1 CONTROLS -->
+      <div class="panel-card" id="p1-controls">
+        <div class="panel-header">
+          <span>FLUSH+RELOAD ATTACK CONTROLS</span>
+          <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">20 Memory Addresses (0–19) | 6 Secret VIP Ingredients</span>
+        </div>
+        <div class="control-row">
+          <button class="action-btn btn-orange" id="btnP1Flush" onclick="p1Flush()">1. Flush Cache (clflush)</button>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Evicts all shared lines from L1 to DRAM.</span>
+        </div>
+        <div class="control-row">
+          <button class="action-btn btn-purple" id="btnP1Victim" onclick="p1TriggerVictim()">2. Trigger Victim (Prep VIP Order)</button>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Victim loads 6 secret items into L1 Cache.</span>
+        </div>
+        <div class="control-row">
+          <label style="font-size: 0.9rem; font-weight: 600;">3. Probe Address (0–19):</label>
+          <input type="number" id="p1ProbeInput" min="0" max="19" value="0" style="width: 60px; padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid var(--card-border); background: #0f172a; color: #fff;">
+          <button class="action-btn btn-blue" id="btnP1Probe" onclick="p1Probe()">Measure Latency</button>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Timing &lt; 0.1s indicates a Cache Hit!</span>
+        </div>
+        <div class="control-row" style="border-top: 1px solid var(--card-border); padding-top: 12px;">
+          <label style="font-size: 0.9rem; font-weight: 600;">Submit 6 VIP Ingredients (e.g. 2 5 7 11 14 18):</label>
+          <input type="text" id="p1GuessInput" placeholder="6 numbers..." style="padding: 7px 12px; font-weight: bold; border-radius: 4px; border: 1px solid var(--card-border); background: #0f172a; color: #fff; width: 220px;">
+          <button class="action-btn btn-green" onclick="p1Submit()">SUBMIT ATTACK</button>
+          <button class="action-btn btn-gray" onclick="p1Reset()">🔄 Reset Round</button>
+        </div>
+      </div>
+
+      <!-- PART 2 CONTROLS -->
+      <div class="panel-card" id="p2-controls" style="display: none;">
+        <div class="panel-header">
+          <span>5-STAGE CPU PIPELINE VISUALIZER</span>
+          <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">Multi-Tier Latency: L1 (1s) | L2 (3s) | DRAM (5s)</span>
+        </div>
+        <!-- 5 Pipeline Stage Displays -->
+        <div class="pipeline-grid">
+          <div class="pipe-box" id="pipe-if">
+            <div class="pipe-title">1. IF (Fetch)</div>
+            <div class="pipe-inst" id="inst-if">nop</div>
+          </div>
+          <div class="pipe-box" id="pipe-de">
+            <div class="pipe-title">2. DE (Decode)</div>
+            <div class="pipe-inst" id="inst-de">nop</div>
+          </div>
+          <div class="pipe-box" id="pipe-ex">
+            <div class="pipe-title">3. EX (Execute)</div>
+            <div class="pipe-inst" id="inst-ex">nop</div>
+          </div>
+          <div class="pipe-box" id="pipe-me">
+            <div class="pipe-title">4. ME (Memory)</div>
+            <div class="pipe-inst" id="inst-me">nop</div>
+          </div>
+          <div class="pipe-box" id="pipe-wb">
+            <div class="pipe-title">5. WB (Writeback)</div>
+            <div class="pipe-inst" id="inst-wb">nop</div>
+          </div>
+        </div>
+        <!-- Registers HUD -->
+        <div class="control-row" style="background: #0f172a; padding: 10px; border-radius: 6px;">
+          <span style="font-weight: 700; color: #facc15;" id="p2RegPC">PC: 0</span>
+          <span style="color: #cbd5e1;" id="p2RegR1">r1: None</span>
+          <span style="color: #cbd5e1;" id="p2RegR2">r2: None</span>
+          <span style="color: #cbd5e1;" id="p2RegR3">r3: None</span>
+        </div>
+        <!-- Pipeline Action Buttons -->
+        <div class="control-row">
+          <button class="action-btn btn-blue" id="btnP2Step" onclick="p2StepCycle()">▶ Step Cycle</button>
+          <button class="action-btn btn-green" id="btnP2Auto" onclick="p2ToggleAuto()">⏩ Auto Run</button>
+          <button class="action-btn btn-gray" onclick="p2Reset()">🔄 Reset Pipeline</button>
+          <button class="action-btn btn-purple" onclick="openP2Challenge()">🧠 Complete Checkpoint Challenge</button>
+        </div>
+      </div>
+
+      <!-- PART 3 CONTROLS -->
+      <div class="panel-card" id="p3-controls" style="display: none;">
+        <div class="panel-header">
+          <span>DOUBLE-SIDED ROWHAMMER CONTROLS</span>
+          <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">Target: Protected Odd Shelf | Flanking Rows: Even (2–18)</span>
+        </div>
+        <!-- Shelf Map Display -->
+        <div class="shelf-grid" id="p3ShelfMap"></div>
+        <div class="control-row" style="margin-top: 8px;">
+          <label style="font-size: 0.9rem; font-weight: 600;">Select Accessible Even Row (2–18):</label>
+          <select id="p3RowSelect" style="padding: 7px 12px; font-weight: bold; border-radius: 4px; border: 1px solid var(--card-border); background: #0f172a; color: #fff;">
+            <option value="2">Row 2</option>
+            <option value="4">Row 4</option>
+            <option value="6">Row 6</option>
+            <option value="8">Row 8</option>
+            <option value="10">Row 10</option>
+            <option value="12">Row 12</option>
+            <option value="14">Row 14</option>
+            <option value="16">Row 16</option>
+            <option value="18">Row 18</option>
+          </select>
+          <button class="action-btn btn-orange" id="btnP3Hammer" onclick="p3HammerRow()">🔨 Hammer Selected Row (-1 Action)</button>
+          <button class="action-btn btn-blue" id="btnP3Verify" onclick="p3VerifyChef()">👨‍🍳 Ask Head Chef to Verify (-3 Penalty if wrong)</button>
+          <button class="action-btn btn-gray" onclick="p3Reset()">🔄 Restart Level</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section B: Technical Deep Dive & Critical Thinking Checkpoints -->
+    <div id="sectionB-view" style="display: none;">
+      
+      <!-- Part 1 Deep Dive -->
+      <div class="tech-panel" id="p1-tech">
+        <h2>🔬 Section B: Flush+Reload Hardware Implementation</h2>
+        <p>
+          In our kitchen analogy, <strong>"clearing the counter"</strong> represents evicting cached lines so that subsequent accesses are forced to fetch from DRAM.
+        </p>
+
+        <h3>1. The x86 <code>clflush</code> Instruction</h3>
+        <p>
+          On modern processors, an unprivileged user process can execute <code>clflush [address]</code>. This instruction flushes the 64-byte cache line containing that address from <strong>all cache levels (L1, L2, and shared L3/LLC)</strong> back to DRAM, invalidating the tag.
+        </p>
+        <div class="code-block">
+// Real-world Flush+Reload timing snippet in C / Assembly:
+void probe(char *adrs) {
+    volatile uint32_t time;
+    asm volatile (
+        "  mfence             \n" // Force serialization: drain CPU store buffers
+        "  lfence             \n" // Wait for previous instructions to retire
+        "  rdtsc              \n" // Read Time-Stamp Counter into EDX:EAX
+        "  mov %%eax, %%esi   \n" // Save start timestamp
+        "  mov (%1), %%eax    \n" // Memory access (Fetch the line)
+        "  lfence             \n" // Wait for memory read to complete
+        "  rdtsc              \n" // Read stop timestamp
+        "  sub %%esi, %%eax   \n" // delta = stop - start
+        "  mov %%eax, %0      \n"
+        : "=r" (time)
+        : "r" (adrs)
+        : "eax", "edx", "esi"
+    );
+    if (time < CACHE_THRESHOLD) {
+        // Cache Hit! Victim accessed this address!
+    }
+}
+        </div>
+
+        <h3>2. What if <code>clflush</code> is blocked? Evict+Reload</h3>
+        <p>
+          On architectures without an unprivileged flush (such as older ARM or locked hypervisors), attackers perform <strong>Evict+Reload</strong>. The attacker allocates an <em>Eviction Set</em> (a collection of addresses that map to the exact same cache set) and reads them in a loop. The hardware LRU (Least Recently Used) replacement policy automatically evicts the victim line to DRAM!
+        </p>
+
+        <div class="interactive-quiz">
+          <h4>🧠 Critical Thinking Checkpoint: Cache Line Calibration</h4>
+          <p>
+            An attacker measures access time to a shared cryptographic function table. Over 1,000 runs, 95% of accesses took ~280 CPU cycles, but when the victim performed an AES encryption, access to Table Entry 4 took only <strong>62 cycles</strong>.
+          </p>
+          <p><strong>What does this 62-cycle access prove?</strong></p>
+          <label><input type="radio" name="p1quiz" value="0"> A) Table Entry 4 was fetched from Main Memory DRAM.</label>
+          <label><input type="radio" name="p1quiz" value="1"> B) The victim accessed Table Entry 4 during encryption, loading it into L1/L2 cache (Cache Hit).</label>
+          <label><input type="radio" name="p1quiz" value="0"> C) The CPU suffered a branch misprediction.</label>
+          <button class="action-btn btn-green" style="width: fit-content; margin-top: 8px;" onclick="checkP1Quiz()">Verify Answer</button>
+          <div id="p1QuizResult" style="font-weight: bold; font-size: 0.9rem;"></div>
+        </div>
+      </div>
+
+      <!-- Part 2 Deep Dive -->
+      <div class="tech-panel" id="p2-tech" style="display: none;">
+        <h2>🔬 Section B: The Von Neumann Memory Wall & Pipeline Bottlenecks</h2>
+        
+        <h3>1. The Classical 5-Stage RISC Pipeline</h3>
+        <p>
+          Without pipelining, an instruction takes 5 clock cycles before the next instruction can start (CPI = 5). Pipelining overlaps the execution stages so that 1 instruction finishes every single clock cycle (ideal CPI = 1):
+        </p>
+        <ul style="margin-left: 20px;">
+          <li><strong>IF (Instruction Fetch):</strong> Retrieves 32-bit instruction word from I-Cache at Program Counter (PC).</li>
+          <li><strong>DE (Decode / Register Fetch):</strong> Decodes opcode and reads operands from register file.</li>
+          <li><strong>EX (Execute / ALU):</strong> Evaluates arithmetic (+, -, OR) or calculates branch targets.</li>
+          <li><strong>ME (Memory Access):</strong> Reads/writes D-Cache or off-chip DRAM for load/store operations.</li>
+          <li><strong>WB (Writeback):</strong> Commits ALU or loaded values into destination registers.</li>
+        </ul>
+
+        <h3>2. Why Memory Access (ME) is the Primary Bottleneck (The Memory Wall)</h3>
+        <p>
+          While on-chip ALU execution runs at 3–5 GHz (sub-nanosecond timing), off-chip physical DRAM capacitors take <strong>50–100ns (hundreds of clock cycles)</strong> to activate wordlines and charge bitlines. This staggering gap is known as the <em>Memory Wall</em>. Multi-level caches (L1, L2, L3) are specifically engineered to prevent the CPU pipeline from continually stalling!
+        </p>
+
+        <div class="interactive-quiz">
+          <h4>🧠 Mandatory Checkpoint: Program Latency Calculation</h4>
+          <p>
+            Consider our execution trace from <code>ACPAtext.txt</code>:<br>
+            • <code>lw r1, 5</code> (Prep Counter: L1 Cache Hit = 1.0s)<br>
+            • <code>lw r2, 16</code> (Kitchen Pantry: L2 Cache Hit = 3.0s)<br>
+            • <code>lw r3, 17</code> (Walk-In Freezer: Main Memory DRAM Miss = 5.0s)<br>
+            • <code>add r3, r1, r2</code> (On-chip ALU operation = negligible latency)
+          </p>
+          <p><strong>Enter Total Memory Latency (in seconds):</strong></p>
+          <input type="number" id="p2LatencyInput" step="0.1" style="width: 100px; padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid var(--card-border); background: #0f172a; color: #fff;">
+          <button class="action-btn btn-green" style="width: fit-content; margin-top: 8px;" onclick="checkP2Latency()">Submit Latency Verification</button>
+          <div id="p2LatencyResult" style="font-weight: bold; font-size: 0.9rem;"></div>
+        </div>
+      </div>
+
+      <!-- Part 3 Deep Dive -->
+      <div class="tech-panel" id="p3-tech" style="display: none;">
+        <h2>🔬 Section B: DRAM Physics & The Page Table Entry (PTE) Rowhammer Exploit</h2>
+
+        <h3>1. Physical DRAM Capacitor Physics: Where Do Bits Flip?</h3>
+        <p>
+          <strong>Critical Concept:</strong> The attacker rapidly activates the <em>Aggressor Rows</em> (wordlines), but the <strong>bit-flips occur in the adjacent unaccessed VICTIM ROW</strong>!
+        </p>
+        <p>
+          Each DRAM bit consists of 1 transistor and 1 tiny capacitor. Because memory cells are packed nanometers apart, toggling the voltage on an aggressor wordline hundreds of thousands of times per refresh window induces parasitic capacitive cross-talk. The charge in the neighboring victim capacitors leaks away before the scheduled memory refresh, flipping <code>1 &rarr; 0</code> or <code>0 &rarr; 1</code>!
+        </p>
+
+        <h3>2. How an Attacker Turns a Bit-Flip into Root / Kernel Takeover</h3>
+        <p>
+          Random data corruption isn't useful by itself. In Google Project Zero's landmark exploit, attackers turn bit-flips into full kernel control via <strong>Page Table Entry (PTE) Overwriting</strong>:
+        </p>
+        <ol style="margin-left: 20px;">
+          <li>The attacker allocates thousands of Page Tables across memory (memory spraying).</li>
+          <li>Double-sided rowhammering is executed until a single bit flips inside the <em>Physical Page Number (PPN)</em> field of a PTE.</li>
+          <li>The flipped bit points the user process's virtual memory mapping to <strong>another Page Table page</strong> instead of normal user data!</li>
+          <li>The attacker now has direct write access to page table mappings, granting arbitrary Read/Write access to all physical RAM, bypassing all OS permission rings (Ring 0 / Root execution)!</li>
+        </ol>
+
+        <div class="interactive-quiz">
+          <h4>🧠 Critical Thinking Checkpoint: Double-Sided Hammering</h4>
+          <p>
+            Why is <em>Double-Sided Rowhammering</em> (hammering both Row N-1 and Row N+1) dramatically more effective than Single-Sided Hammering?
+          </p>
+          <label><input type="radio" name="p3quiz" value="0"> A) It uses twice as much CPU cache space.</label>
+          <label><input type="radio" name="p3quiz" value="1"> B) The victim row receives simultaneous capacitive electrical leakage from both sides, dropping capacitor voltage below the sense amplifier threshold before refresh.</label>
+          <label><input type="radio" name="p3quiz" value="0"> C) It disables the computer's cooling fan.</label>
+          <button class="action-btn btn-green" style="width: fit-content; margin-top: 8px;" onclick="checkP3Quiz()">Verify Answer</button>
+          <div id="p3QuizResult" style="font-weight: bold; font-size: 0.9rem;"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Victory / Checkpoint Modal Dialog -->
+  <div class="modal-overlay" id="victoryModal">
+    <div class="modal-box">
+      <div class="modal-title">🏆 MISSION ACCOMPLISHED!</div>
+      <div style="text-align: center; font-size: 1.1rem; color: #ecf0f1; font-weight: 600;">
+        You have cracked all 3 levels of Kitchen Espionage!
+      </div>
+      
+      <div style="background: #1e293b; border: 1px solid var(--card-border); padding: 14px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="color: #22c55e; font-weight: 700;">✔ Part 1: Flush+Reload Cache Side-Channel</div>
+        <div style="font-size: 0.85rem; color: #cbd5e1;">Recovered the 6 secret VIP ingredients using microarchitectural timing differences.</div>
+        
+        <div style="color: #22c55e; font-weight: 700; margin-top: 6px;">✔ Part 2: 5-Stage CPU Pipeline & Memory Hierarchy</div>
+        <div style="font-size: 0.85rem; color: #cbd5e1;">Mapped multi-tier latency across L1, L2, and DRAM, verifying the Memory Wall bottleneck.</div>
+        
+        <div style="color: #22c55e; font-weight: 700; margin-top: 6px;">✔ Part 3: DRAM Double-Sided Rowhammer Attack</div>
+        <div style="font-size: 0.85rem; color: #cbd5e1;">Induced adjacent wordline electromagnetic leakage to dislodge the Security Access List!</div>
+      </div>
+
+      <div style="background: #0f172a; border-left: 4px solid var(--accent-blue); padding: 10px; font-size: 0.85rem; color: #94a3b8; font-style: italic;">
+        Hardware Security Takeaway: Software permission rings and access control lists cannot stop attacks that exploit architectural timing boundaries and physical semiconductor capacitor physics.
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 6px;">
+        <button class="action-btn btn-blue" onclick="closeVictoryModal()">Close</button>
+        <button class="action-btn btn-green" onclick="restartEntireSuite()">🚀 Replay Full Suite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Part 2 Latency Checkpoint Modal -->
+  <div class="modal-overlay" id="p2CheckpointModal">
+    <div class="modal-box" style="border-color: var(--accent-blue);">
+      <div class="modal-title" style="color: var(--accent-blue);">🧠 Part 2 Architecture Checkpoint</div>
+      <p style="font-size: 0.9rem; color: #e2e8f0;">
+        To ensure mastery of CPU pipelining and memory latency, you must answer the checkpoint before unlocking Part 3!
+      </p>
+      <div style="background: #0f172a; padding: 12px; border-radius: 6px; font-size: 0.85rem;">
+        • 1 access to L1 Prep Counter (Addr 5) = 1.0s<br>
+        • 1 access to L2 Kitchen Pantry (Addr 16) = 3.0s<br>
+        • 1 access to DRAM Walk-In Freezer (Addr 17) = 5.0s<br>
+        <strong>What is the Total Memory Latency in seconds?</strong>
+      </div>
+      <input type="number" id="modalP2Latency" placeholder="Enter seconds (e.g. 9.0)" style="padding: 8px; font-weight: bold; border-radius: 4px; background: #1e293b; color: white; border: 1px solid var(--card-border);">
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="action-btn btn-gray" onclick="document.getElementById('p2CheckpointModal').style.display='none'">Cancel</button>
+        <button class="action-btn btn-green" onclick="submitModalP2Checkpoint()">Verify & Unlock Part 3</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Antigravity Educational Labs &bull; Microarchitectural Hardware Security Simulation Suite &bull; Ready for GitHub Pages
+  </footer>
+
+  <!-- Simulation & Interactive Logic -->
+  <script>
+    // --- AUDIO SYSTEM ---
+    const bgm = document.getElementById('bgm');
+    const audioBtn = document.getElementById('audioToggleBtn');
+    let isPlaying = false;
+
+    bgm.volume = 0.10; // Default to 10% volume as requested
+
+    function toggleAudio() {
+      if (isPlaying) {
+        bgm.pause();
+        isPlaying = false;
+        audioBtn.textContent = '🔇 Music: OFF';
+        audioBtn.style.background = '#475569';
+      } else {
+        bgm.play().then(() => {
+          isPlaying = true;
+          audioBtn.textContent = '🔊 Music: ON';
+          audioBtn.style.background = '#2563eb';
+        }).catch(err => {
+          console.log("Audio play blocked by browser policy:", err);
+        });
+      }
+    }
+
+    function setVolume(val) {
+      bgm.volume = parseFloat(val);
+    }
+
+    // Auto-attempt audio on first user gesture
+    document.addEventListener('click', function autoAudioInit() {
+      if (!isPlaying) {
+        bgm.play().then(() => {
+          isPlaying = true;
+          audioBtn.textContent = '🔊 Music: ON';
+        }).catch(() => {});
+      }
+      document.removeEventListener('click', autoAudioInit);
+    }, { once: true });
+
+    // --- NAVIGATION LOGIC ---
+    let currentPart = 1;
+    let currentSection = 'A';
+
+    function switchPart(partNum) {
+      currentPart = partNum;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-p${partNum}`).classList.add('active');
+
+      // Update control cards
+      document.getElementById('p1-controls').style.display = partNum === 1 ? 'flex' : 'none';
+      document.getElementById('p2-controls').style.display = partNum === 2 ? 'flex' : 'none';
+      document.getElementById('p3-controls').style.display = partNum === 3 ? 'flex' : 'none';
+
+      // Update tech panels
+      document.getElementById('p1-tech').style.display = partNum === 1 ? 'flex' : 'none';
+      document.getElementById('p2-tech').style.display = partNum === 2 ? 'flex' : 'none';
+      document.getElementById('p3-tech').style.display = partNum === 3 ? 'flex' : 'none';
+
+      // Update headers
+      const headers = {
+        1: ["Part 1: Flush+Reload Cache Side-Channel Attack", "Hardware Timing Side-Channel Vulnerabilities"],
+        2: ["Part 2: 5-Stage CPU Pipeline & Memory Bottleneck", "RISC Pipelining & The Von Neumann Memory Wall"],
+        3: ["Part 3: Double-Sided DRAM Rowhammer Attack", "Capacitor Physics & Physical Bit-Flip Exploits"]
+      };
+      document.getElementById('currentPartHeader').textContent = headers[partNum][0];
+      document.getElementById('partSubtitle').textContent = headers[partNum][1];
+
+      // Reset HUD labels
+      if (partNum === 1) {
+        document.getElementById('hudLabel1').textContent = "Probe Budget";
+        updateP1Budget();
+        document.getElementById('hudLabel2').textContent = "Last Fetch Latency";
+        document.getElementById('hudVal2').textContent = "-- s";
+      } else if (partNum === 2) {
+        document.getElementById('hudLabel1').textContent = "Clock Cycle";
+        document.getElementById('hudVal1').textContent = `Cycle ${p2Cycle}`;
+        document.getElementById('hudLabel2').textContent = "Memory Tier Delay";
+        document.getElementById('hudVal2').textContent = "-- s";
+      } else if (partNum === 3) {
+        document.getElementById('hudLabel1').textContent = "Action Budget";
+        document.getElementById('hudVal1').textContent = `${p3Actions} / 20`;
+        document.getElementById('hudLabel2').textContent = "Vibration Detector";
+        document.getElementById('hudVal2').textContent = "Quiet";
+      }
+    }
+
+    function switchSection(sec) {
+      currentSection = sec;
+      document.getElementById('pill-secA').classList.toggle('active', sec === 'A');
+      document.getElementById('pill-secB').classList.toggle('active', sec === 'B');
+      document.getElementById('sectionA-view').style.display = sec === 'A' ? 'flex' : 'none';
+      document.getElementById('sectionB-view').style.display = sec === 'B' ? 'block' : 'none';
+    }
+
+    // --- CANVAS VISUALIZATION ENGINE ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Assets
+    const chefImg = new Image(); chefImg.src = 'chef.png';
+    const counterImg = new Image(); counterImg.src = 'counter.png';
+    const freezerImg = new Image(); freezerImg.src = 'freezer.png';
+
+    let chefX = 140;
+    let chefY = 110;
+    let targetChefX = 140;
+    let chefHop = 0;
+    let shelfShake = 0;
+
+    function renderCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Floor & Wall
+      ctx.fillStyle = "#cbd5e1";
+      ctx.fillRect(0, 0, canvas.width, 140);
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillRect(0, 140, canvas.width, 100);
+
+      // 1. Prep Counter (L1 Cache - Left)
+      if (counterImg.complete && counterImg.naturalWidth > 0) {
+        ctx.drawImage(counterImg, 40, 70, 180, 120);
+      } else {
+        ctx.fillStyle = "#475569";
+        ctx.fillRect(40, 100, 180, 80);
+      }
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText("Prep Counter (L1 Cache)", 60, 205);
+
+      // 2. Kitchen Pantry (L2 Cache - Center)
+      ctx.fillStyle = "#f59e0b";
+      ctx.fillRect(390, 45, 120, 130);
+      ctx.strokeStyle = "#d97706";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(390, 45, 120, 130);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillText("Kitchen Pantry", 408, 100);
+      ctx.fillText("(L2 Cache - 3s)", 408, 120);
+
+      // 3. Walk-In Freezer (Main Memory - Right)
+      const shakeOffset = shelfShake > 0 ? (Math.random() * 8 - 4) : 0;
+      if (freezerImg.complete && freezerImg.naturalWidth > 0) {
+        ctx.drawImage(freezerImg, 700 + shakeOffset, 20, 160, 175);
+      } else {
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(700 + shakeOffset, 30, 150, 160);
+      }
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText("Walk-In Freezer (DRAM)", 705, 205);
+
+      // 4. Chef Sprite Movement
+      if (Math.abs(chefX - targetChefX) > 2) {
+        chefX += (targetChefX - chefX) * 0.15;
+      } else {
+        chefX = targetChefX;
+      }
+
+      const drawY = chefY - chefHop;
+      if (chefImg.complete && chefImg.naturalWidth > 0) {
+        ctx.drawImage(chefImg, chefX, drawY, 80, 80);
+      } else {
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(chefX + 40, drawY + 40, 25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (shelfShake > 0) shelfShake--;
+      if (chefHop > 0) chefHop *= 0.8;
+
+      requestAnimationFrame(renderCanvas);
+    }
+    requestAnimationFrame(renderCanvas);
+
+    // --- PART 1: FLUSH + RELOAD ATTACK ENGINE ---
+    let p1All = Array.from({length: 20}, (_, i) => i);
+    let p1Secret = [];
+    let p1PrepCounter = [];
+    let p1Budget = 18;
+
+    function p1Reset() {
+      // Pick 6 unique random secret numbers from 0-19
+      p1Secret = [...p1All].sort(() => 0.5 - Math.random()).slice(0, 6);
+      p1PrepCounter = [...p1All].sort(() => 0.5 - Math.random()).slice(0, 6);
+      p1Budget = 18;
+      updateP1Budget();
+      document.getElementById('hudVal2').textContent = "-- s";
+      document.getElementById('hudFeedback').textContent = "Round reset. Flush cache, trigger victim order, and map hits!";
+      document.getElementById('p1GuessInput').value = "";
+      targetChefX = 140;
+    }
+
+    function updateP1Budget() {
+      const el = document.getElementById('hudVal1');
+      el.textContent = `${p1Budget} / 18`;
+      el.style.color = p1Budget > 8 ? '#22c55e' : p1Budget > 3 ? '#f59e0b' : '#ef4444';
+    }
+
+    function p1Flush() {
+      p1PrepCounter = [];
+      document.getElementById('hudFeedback').textContent = "Cache Flushed (clflush executed). Prep counter is completely empty!";
+      document.getElementById('hudVal2').textContent = "-- s";
+      chefHop = 15;
+    }
+
+    function p1TriggerVictim() {
+      // Victim loads secrets onto counter
+      p1Secret.forEach(item => {
+        if (!p1PrepCounter.includes(item)) p1PrepCounter.push(item);
+      });
+      targetChefX = 720;
+      setTimeout(() => { targetChefX = 140; }, 400);
+      document.getElementById('hudFeedback').textContent = "Victim Executed: VIP placed 6 secret ingredients on the prep counter!";
+    }
+
+    function p1Probe() {
+      if (p1Budget <= 0) {
+        alert("Out of probes! The Chef got suspicious. Reset the round to try again.");
+        return;
+      }
+      const addr = parseInt(document.getElementById('p1ProbeInput').value);
+      p1Budget--;
+      updateP1Budget();
+
+      if (p1PrepCounter.includes(addr)) {
+        // Cache Hit
+        chefHop = 20;
+        const latency = (0.05 + Math.random() * 0.04).toFixed(3);
+        document.getElementById('hudVal2').textContent = `${latency} s (FAST CACHE HIT)`;
+        document.getElementById('hudVal2').style.color = "#22c55e";
+        document.getElementById('hudFeedback').textContent = `Probing Addr ${addr}: Found in L1 Cache! Fast Hit (<0.1s)!`;
+      } else {
+        // Cache Miss
+        targetChefX = 720;
+        setTimeout(() => { targetChefX = 140; }, 500);
+        const latency = (1.75 + Math.random() * 0.35).toFixed(3);
+        document.getElementById('hudVal2').textContent = `${latency} s (SLOW CACHE MISS)`;
+        document.getElementById('hudVal2').style.color = "#f97316";
+        document.getElementById('hudFeedback').textContent = `Probing Addr ${addr}: Missing from L1! Fetched from DRAM Walk-In Freezer (>1.5s).`;
+        p1PrepCounter.push(addr); // Line is now cached
+      }
+    }
+
+    function p1Submit() {
+      const val = document.getElementById('p1GuessInput').value.trim();
+      const numbers = val.replace(/,/g, ' ').split(/\s+/).map(x => parseInt(x)).filter(x => !isNaN(x));
+      numbers.sort((a, b) => a - b);
+      const sortedSecret = [...p1Secret].sort((a, b) => a - b);
+
+      if (numbers.length !== 6) {
+        alert(`Please enter exactly 6 numbers (you entered ${numbers.length}).`);
+        return;
+      }
+
+      if (JSON.stringify(numbers) === JSON.stringify(sortedSecret)) {
+        alert(`🎉 PART 1 CLEARED!\n\nYou successfully recovered the 6 VIP ingredients: [${sortedSecret.join(', ')}] using microarchitectural cache timing!\n\nAdvancing to Part 2!`);
+        switchPart(2);
+      } else {
+        alert("❌ Access Denied! The timing profile does not match the VIP's secret order. Re-probe to isolate the cache hits!");
+      }
+    }
+
+    function checkP1Quiz() {
+      const selected = document.querySelector('input[name="p1quiz"]:checked');
+      const res = document.getElementById('p1QuizResult');
+      if (!selected) return;
+      if (selected.value === "1") {
+        res.textContent = "✅ Correct! A 62-cycle fetch falls well below the 150-cycle DRAM threshold, proving a Cache Hit.";
+        res.style.color = "#22c55e";
+      } else {
+        res.textContent = "❌ Incorrect. Remember that cache hits execute in <80 cycles, whereas DRAM fetches take 200+ cycles.";
+        res.style.color = "#ef4444";
+      }
+    }
+
+    // --- PART 2: 5-STAGE CPU PIPELINE ENGINE ---
+    const p2Program = [
+      { op: "lw", p1: "r1", p2: "5", tier: "L1 Cache Hit (1.0s)", x: 140 },
+      { op: "lw", p2: "r2", p2Addr: "16", tier: "L2 Cache Hit (3.0s)", x: 440 },
+      { op: "lw", p1: "r3", p2Addr: "17", tier: "Main Memory DRAM (5.0s)", x: 740 },
+      { op: "add", p1: "r3", p2: "r1", p3: "r2", tier: "ALU Add", x: 140 }
+    ];
+
+    let p2Cycle = 0;
+    let p2PC = 0;
+    let p2Stages = { if: "nop", de: "nop", ex: "nop", me: "nop", wb: "nop" };
+    let p2Regs = { r1: null, r2: null, r3: null };
+    let p2AutoTimer = null;
+    let p2Completed = false;
+
+    function p2Reset() {
+      if (p2AutoTimer) clearInterval(p2AutoTimer);
+      p2Cycle = 0;
+      p2PC = 0;
+      p2Stages = { if: "nop", de: "nop", ex: "nop", me: "nop", wb: "nop" };
+      p2Regs = { r1: null, r2: null, r3: null };
+      p2Completed = false;
+      targetChefX = 140;
+      updateP2UI("Pipeline reset to Cycle 0.");
+      document.getElementById('btnP2Auto').textContent = "⏩ Auto Run";
+    }
+
+    function p2StepCycle() {
+      if (p2Completed) return false;
+      p2Cycle++;
+
+      // Check halt
+      if (p2Stages.wb === "halt") {
+        p2Completed = true;
+        updateP2UI("Pipeline Complete! All instructions retired.");
+        if (p2AutoTimer) clearInterval(p2AutoTimer);
+        // Trigger mandatory checkpoint challenge (cannot bypass!)
+        setTimeout(openP2Challenge, 400);
+        return false;
+      }
+
+      // 1. WB
+      if (p2Stages.wb && p2Stages.wb.startsWith("lw r1")) p2Regs.r1 = 74;
+      if (p2Stages.wb && p2Stages.wb.startsWith("lw r2")) p2Regs.r2 = 72;
+      if (p2Stages.wb && p2Stages.wb.startsWith("lw r3")) p2Regs.r3 = 20;
+      if (p2Stages.wb && p2Stages.wb.startsWith("add r3")) p2Regs.r3 = 146;
+
+      // 2. ME Memory Access & Chef Movement
+      let latencyStr = "-- s";
+      if (p2Stages.me && p2Stages.me.includes("lw")) {
+        if (p2Stages.me.includes("5")) { targetChefX = 140; latencyStr = "1.0s (L1 Hit)"; }
+        else if (p2Stages.me.includes("16")) { targetChefX = 440; latencyStr = "3.0s (L2 Hit)"; }
+        else if (p2Stages.me.includes("17")) { targetChefX = 740; latencyStr = "5.0s (DRAM Miss)"; }
+      } else {
+        targetChefX = 140;
+      }
+      document.getElementById('hudVal2').textContent = latencyStr;
+
+      // Advance stages
+      p2Stages.wb = p2Stages.me;
+      p2Stages.me = p2Stages.ex;
+      p2Stages.ex = p2Stages.de;
+      p2Stages.de = p2Stages.if;
+
+      // IF
+      if (p2PC < p2Program.length) {
+        const item = p2Program[p2PC];
+        p2Stages.if = `${item.op} ${item.p1 || ''} ${item.p2 || item.p2Addr || ''}`.trim();
+        p2PC++;
+      } else {
+        p2Stages.if = "halt";
+      }
+
+      updateP2UI(`Cycle ${p2Cycle}: Advanced 5 pipeline stages.`);
+      return true;
+    }
+
+    function p2ToggleAuto() {
+      if (p2AutoTimer) {
+        clearInterval(p2AutoTimer);
+        p2AutoTimer = null;
+        document.getElementById('btnP2Auto').textContent = "⏩ Auto Run";
+      } else {
+        document.getElementById('btnP2Auto').textContent = "⏸ Pause";
+        p2AutoTimer = setInterval(() => {
+          const cont = p2StepCycle();
+          if (!cont && p2AutoTimer) {
+            clearInterval(p2AutoTimer);
+            p2AutoTimer = null;
+            document.getElementById('btnP2Auto').textContent = "⏩ Auto Run";
+          }
+        }, 900);
+      }
+    }
+
+    function updateP2UI(statusMsg) {
+      document.getElementById('hudVal1').textContent = `Cycle ${p2Cycle}`;
+      document.getElementById('hudFeedback').textContent = statusMsg;
+
+      document.getElementById('inst-if').textContent = p2Stages.if;
+      document.getElementById('inst-de').textContent = p2Stages.de;
+      document.getElementById('inst-ex').textContent = p2Stages.ex;
+      document.getElementById('inst-me').textContent = p2Stages.me;
+      document.getElementById('inst-wb').textContent = p2Stages.wb;
+
+      // Active styling
+      document.getElementById('pipe-if').className = 'pipe-box' + (p2Stages.if !== 'nop' ? ' active-if' : '');
+      document.getElementById('pipe-de').className = 'pipe-box' + (p2Stages.de !== 'nop' ? ' active-de' : '');
+      document.getElementById('pipe-ex').className = 'pipe-box' + (p2Stages.ex !== 'nop' ? ' active-ex' : '');
+      document.getElementById('pipe-me').className = 'pipe-box' + (p2Stages.me !== 'nop' ? ' active-me' : '');
+      document.getElementById('pipe-wb').className = 'pipe-box' + (p2Stages.wb !== 'nop' ? ' active-wb' : '');
+
+      document.getElementById('p2RegPC').textContent = `PC: ${p2PC}`;
+      document.getElementById('p2RegR1').textContent = `r1: ${p2Regs.r1 !== null ? p2Regs.r1 : '--'}`;
+      document.getElementById('p2RegR2').textContent = `r2: ${p2Regs.r2 !== null ? p2Regs.r2 : '--'}`;
+      document.getElementById('p2RegR3').textContent = `r3: ${p2Regs.r3 !== null ? p2Regs.r3 : '--'}`;
+    }
+
+    function openP2Challenge() {
+      document.getElementById('p2CheckpointModal').style.display = 'flex';
+    }
+
+    function submitModalP2Checkpoint() {
+      const val = parseFloat(document.getElementById('modalP2Latency').value);
+      if (Math.abs(val - 9.0) < 0.1) {
+        document.getElementById('p2CheckpointModal').style.display = 'none';
+        alert("🎉 CORRECT! Total memory delay = 1.0s + 3.0s + 5.0s = 9.0s.\n\nYou have mastered the 5-stage pipeline and storage hierarchy! Unlocking Part 3!");
+        switchPart(3);
+      } else {
+        alert("❌ Incorrect! Add the three storage tier latencies: L1 Prep Counter (1.0s) + L2 Pantry (3.0s) + DRAM Freezer (5.0s).");
+      }
+    }
+
+    function checkP2Latency() {
+      const val = parseFloat(document.getElementById('p2LatencyInput').value);
+      const res = document.getElementById('p2LatencyResult');
+      if (Math.abs(val - 9.0) < 0.1) {
+        res.textContent = "✅ Correct! 1.0s (L1) + 3.0s (L2) + 5.0s (DRAM) = 9.0s cumulative memory bottleneck.";
+        res.style.color = "#22c55e";
+      } else {
+        res.textContent = "❌ Incorrect. Remember: 1.0s + 3.0s + 5.0s = 9.0s.";
+        res.style.color = "#ef4444";
+      }
+    }
+
+    // --- PART 3: ROWHAMMER DRAM ATTACK ENGINE ---
+    let p3TargetRow = 7;
+    let p3SandwichA = 6;
+    let p3SandwichB = 8;
+    let p3Actions = 20;
+    let p3RecentHammers = [];
+    let p3AccessListFallen = false;
+
+    function p3Reset() {
+      // Pick an odd row with valid even flanking rows in 2-18
+      const validOddTargets = [3, 5, 7, 9, 11, 13, 15, 17];
+      p3TargetRow = validOddTargets[Math.floor(Math.random() * validOddTargets.length)];
+      p3SandwichA = p3TargetRow - 1;
+      p3SandwichB = p3TargetRow + 1;
+      p3Actions = 20;
+      p3RecentHammers = [];
+      p3AccessListFallen = false;
+
+      updateP3Actions();
+      renderShelfMap();
+      document.getElementById('hudFeedback').textContent = "System ready. Use a skip search across even rows (2–18) to detect vibrations!";
+      targetChefX = 400;
+    }
+
+    function updateP3Actions() {
+      const el = document.getElementById('hudVal1');
+      el.textContent = `${p3Actions} / 20`;
+      el.style.color = p3Actions > 12 ? '#22c55e' : p3Actions > 4 ? '#f59e0b' : '#ef4444';
+    }
+
+    function renderShelfMap() {
+      const container = document.getElementById('p3ShelfMap');
+      container.innerHTML = "";
+      for (let r = 1; r <= 20; r++) {
+        const cell = document.createElement('div');
+        const isAccessible = (r % 2 === 0);
+        cell.className = 'shelf-cell ' + (isAccessible ? 'shelf-accessible' : 'shelf-locked');
+        cell.textContent = isAccessible ? `R${r}` : `R${r}🔒`;
+        if (p3AccessListFallen && r === p3TargetRow) {
+          cell.className += ' shelf-target';
+          cell.textContent = `R${r}📄`;
+        }
+        container.appendChild(cell);
+      }
+    }
+
+    function p3HammerRow() {
+      if (p3Actions <= 0) {
+        alert("Out of Actions! The Prep Cook walked in and restocked the shelves. Progress wiped!");
+        p3Reset();
+        return;
+      }
+      p3Actions--;
+      updateP3Actions();
+      shelfShake = 15;
+
+      const row = parseInt(document.getElementById('p3RowSelect').value);
+      p3RecentHammers.push(row);
+      if (p3RecentHammers.length > 6) p3RecentHammers.shift();
+
+      targetChefX = 700;
+      setTimeout(() => { targetChefX = 450; }, 350);
+
+      // Check Double-Sided Rowhammer
+      if (row === p3SandwichA || row === p3SandwichB) {
+        const otherSide = (row === p3SandwichA) ? p3SandwichB : p3SandwichA;
+        const isDoubleSided = p3RecentHammers.includes(otherSide);
+
+        if (isDoubleSided) {
+          document.getElementById('hudVal2').textContent = "VIBRATIONS EXTREME!";
+          document.getElementById('hudVal2').style.color = "#ef4444";
+          // 25% chance to drop
+          if (Math.random() < 0.35 || p3RecentHammers.length >= 4) {
+            p3AccessListFallen = true;
+            renderShelfMap();
+            document.getElementById('hudFeedback').textContent = "💥💥 RACK DISTURBANCE! Papers rustled... THE SECURITY ACCESS LIST 📄 fell to the floor!";
+          } else {
+            document.getElementById('hudFeedback').textContent = `⚡⚡ DOUBLE-SIDED ROWHAMMER ACTIVE on Rows ${p3SandwichA} & ${p3SandwichB}! Heavy vibrations shaking target row!`;
+          }
+        } else {
+          document.getElementById('hudVal2').textContent = "MILD VIBRATION";
+          document.getElementById('hudVal2').style.color = "#f59e0b";
+          document.getElementById('hudFeedback').textContent = `⚡ Single-sided vibration detected near Row ${row}! Shelf rattles, but double-sided hammering from BOTH flanking rows is required!`;
+        }
+      } else {
+        document.getElementById('hudVal2').textContent = "Dull Thud";
+        document.getElementById('hudVal2').style.color = "#94a3b8";
+        document.getElementById('hudFeedback').textContent = `Row ${row}: A dull thud echoes. Too far away to disturb protected shelves.`;
+      }
+    }
+
+    function p3VerifyChef() {
+      p3Actions -= 3;
+      updateP3Actions();
+
+      if (p3AccessListFallen) {
+        openVictoryModal();
+      } else {
+        alert("❌ The Chef checks the shelf: 'The access list is right here where it belongs! Get back to work!' (-3 Actions penalty)");
+        if (p3Actions <= 0) p3Reset();
+      }
+    }
+
+    function checkP3Quiz() {
+      const selected = document.querySelector('input[name="p3quiz"]:checked');
+      const res = document.getElementById('p3QuizResult');
+      if (!selected) return;
+      if (selected.value === "1") {
+        res.textContent = "✅ Correct! Double-sided hammering sandwiches the victim wordline between two aggressors, doubling charge leakage.";
+        res.style.color = "#22c55e";
+      } else {
+        res.textContent = "❌ Incorrect. Rowhammer is an electrical disturbance causing charge leakage across adjacent silicon lines.";
+        res.style.color = "#ef4444";
+      }
+    }
+
+    // --- VICTORY MODAL LOGIC ---
+    function openVictoryModal() {
+      document.getElementById('victoryModal').style.display = 'flex';
+    }
+
+    function closeVictoryModal() {
+      document.getElementById('victoryModal').style.display = 'none';
+    }
+
+    function restartEntireSuite() {
+      closeVictoryModal();
+      p1Reset();
+      p2Reset();
+      p3Reset();
+      switchPart(1);
+    }
+
+    // Initialize all levels on load
+    p1Reset();
+    p2Reset();
+    p3Reset();
+  </script>
+</body>
+</html>
