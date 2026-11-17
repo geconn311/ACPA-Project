@@ -140,13 +140,14 @@
     /* Main Container */
     main {
       flex: 1;
-      max-width: 1100px;
+      max-width: 100%;
       width: 100%;
-      margin: 20px auto;
-      padding: 0 16px;
+      margin: 10px auto;
+      padding: 0 24px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
+      box-sizing: border-box;
     }
 
     /* Section A/B Switcher */
@@ -185,18 +186,19 @@
 
     /* Canvas Screen */
     .canvas-container {
-      background: #e2e8f0;
+      background: #070b14;
       border-radius: 12px;
-      border: 2px solid var(--card-border);
+      border: 1px solid var(--card-border);
       overflow: hidden;
       position: relative;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      height: 380px;
     }
 
     canvas {
       display: block;
       width: 100%;
-      height: 240px;
+      height: 100%;
     }
 
     /* Game HUD & Panels */
@@ -507,7 +509,7 @@
         <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 8px;" id="partSubtitle">Hardware Timing Side-Channel Vulnerabilities</span>
       </div>
       <div class="pill-group">
-        <button class="pill-btn active" id="pill-secA" onclick="switchSection('A')">🎮 Section A: Kitchen Game</button>
+        <button class="pill-btn active" id="pill-secA" onclick="switchSection('A')">🎮 Section A: Interactive Simulation</button>
         <button class="pill-btn" id="pill-secB" onclick="switchSection('B')">🔬 Section B: Hardware Deep Dive</button>
       </div>
     </div>
@@ -517,7 +519,7 @@
       
       <!-- Interactive Animated Canvas -->
       <div class="canvas-container">
-        <canvas id="gameCanvas" width="900" height="240"></canvas>
+        <canvas id="gameCanvas"></canvas>
       </div>
 
       <!-- HUD Status Bar -->
@@ -921,87 +923,630 @@ void probe(char *adrs) {
       document.getElementById('sectionB-view').style.display = sec === 'B' ? 'block' : 'none';
     }
 
-    // --- CANVAS VISUALIZATION ENGINE ---
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // --- PROCEDURAL VECTOR HARDWARE VISUALIZATION ENGINE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Assets
-    const chefImg = new Image(); chefImg.src = 'chef.png';
-    const counterImg = new Image(); counterImg.src = 'counter.png';
-    const freezerImg = new Image(); freezerImg.src = 'freezer.png';
-
-    let chefX = 140;
-    let chefY = 110;
-    let targetChefX = 140;
-    let chefHop = 0;
+    let tokenNormX = 0.16;
+    let targetTokenNormX = 0.16;
+    let tokenNormY = 0.50;
+    let tokenHop = 0;
     let shelfShake = 0;
+    let busPulseX = 0;
+    let dpr = window.devicePixelRatio || 1;
+    let p1LastProbe = { addr: null, hit: null, cycles: null };
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 50);
 
     function renderCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const W = canvas.width / dpr;
+      const H = canvas.height / dpr;
 
-      // Floor & Wall
-      ctx.fillStyle = "#cbd5e1";
-      ctx.fillRect(0, 0, canvas.width, 140);
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillRect(0, 140, canvas.width, 100);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
 
-      // 1. Prep Counter (L1 Cache - Left)
-      if (counterImg.complete && counterImg.naturalWidth > 0) {
-        ctx.drawImage(counterImg, 40, 70, 180, 120);
-      } else {
-        ctx.fillStyle = "#475569";
-        ctx.fillRect(40, 100, 180, 80);
+      // 1. Silicon Wafer Background Grid
+      ctx.fillStyle = "#070b14";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = "#0d1527";
+      ctx.lineWidth = 1;
+      const step = 38;
+      for (let x = 0; x < W; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
       }
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 12px sans-serif";
-      ctx.fillText("Prep Counter (L1 Cache)", 60, 205);
-
-      // 2. Kitchen Pantry (L2 Cache - Center)
-      ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(390, 45, 120, 130);
-      ctx.strokeStyle = "#d97706";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(390, 45, 120, 130);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 11px sans-serif";
-      ctx.fillText("Kitchen Pantry", 408, 100);
-      ctx.fillText("(L2 Cache - 3s)", 408, 120);
-
-      // 3. Walk-In Freezer (Main Memory - Right)
-      const shakeOffset = shelfShake > 0 ? (Math.random() * 8 - 4) : 0;
-      if (freezerImg.complete && freezerImg.naturalWidth > 0) {
-        ctx.drawImage(freezerImg, 700 + shakeOffset, 20, 160, 175);
-      } else {
-        ctx.fillStyle = "#334155";
-        ctx.fillRect(700 + shakeOffset, 30, 150, 160);
-      }
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 12px sans-serif";
-      ctx.fillText("Walk-In Freezer (DRAM)", 705, 205);
-
-      // 4. Chef Sprite Movement
-      if (Math.abs(chefX - targetChefX) > 2) {
-        chefX += (targetChefX - chefX) * 0.15;
-      } else {
-        chefX = targetChefX;
+      for (let y = 0; y < H; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
       }
 
-      const drawY = chefY - chefHop;
-      if (chefImg.complete && chefImg.naturalWidth > 0) {
-        ctx.drawImage(chefImg, chefX, drawY, 80, 80);
+      // Render Active Part
+      if (currentPart === 1) {
+        drawPart1Silicon(W, H);
+      } else if (currentPart === 2) {
+        drawPart2Silicon(W, H);
       } else {
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.arc(chefX + 40, drawY + 40, 25, 0, Math.PI * 2);
-        ctx.fill();
+        drawPart3Silicon(W, H);
       }
 
+      // Smooth Token Animation
+      if (Math.abs(tokenNormX - targetTokenNormX) > 0.005) {
+        tokenNormX += (targetTokenNormX - tokenNormX) * 0.15;
+      } else {
+        tokenNormX = targetTokenNormX;
+      }
+
+      if (tokenHop > 0) tokenHop *= 0.8;
       if (shelfShake > 0) shelfShake--;
-      if (chefHop > 0) chefHop *= 0.8;
+      busPulseX = (busPulseX + 4) % (W * 0.35 || 200);
 
+      ctx.restore();
       requestAnimationFrame(renderCanvas);
     }
     requestAnimationFrame(renderCanvas);
+
+    // ==============================================================
+    // PART 1: SILICON HARDWARE MODEL (L1 SRAM, SYSTEM BUS, DDR4 DIMM)
+    // ==============================================================
+    function drawPart1Silicon(W, H) {
+      const cpuX1 = 20, cpuY1 = 20;
+      const cpuX2 = W * 0.35, cpuY2 = H - 20;
+      const busX1 = cpuX2 + 12, busX2 = W * 0.63;
+      const ramX1 = busX2 + 12, ramX2 = W - 20;
+
+      // 1. CPU Core Die & L1 SRAM
+      ctx.fillStyle = "#090e1a";
+      ctx.fillRect(cpuX1, cpuY1, cpuX2 - cpuX1, cpuY2 - cpuY1);
+      ctx.strokeStyle = "#0284c7";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cpuX1, cpuY1, cpuX2 - cpuX1, cpuY2 - cpuY1);
+
+      // Gold LGA Contact Pins
+      ctx.fillStyle = "#eab308";
+      for (let px = cpuX1 + 10; px < cpuX2 - 10; px += 18) {
+        ctx.fillRect(px, cpuY1 - 4, 8, 4);
+        ctx.fillRect(px, cpuY2, 8, 4);
+      }
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 11px Consolas, monospace";
+      ctx.fillText("CPU CORE DIE: L1 DATA SRAM (32KB)", cpuX1 + 15, cpuY1 + 18);
+
+      // 4 Cache Sets with explicit Address Tags
+      const setStartY = cpuY1 + 38;
+      const setH = Math.max(42, (cpuY2 - setStartY - 65) / 4);
+      const isFlushed = (p1PrepCounter.length === 0);
+
+      for (let s = 0; s < 4; s++) {
+        const sy = setStartY + s * setH;
+        const cachedInSet = p1PrepCounter.filter(x => x % 4 === s).sort((a, b) => a - b);
+        const hasLine = cachedInSet.length > 0;
+        const col = hasLine ? "#22c55e" : "#64748b";
+        const borderCol = hasLine ? "#10b981" : "#1e293b";
+        const fillCol = hasLine ? "#0c2340" : "#090f1d";
+
+        ctx.fillStyle = fillCol;
+        ctx.fillRect(cpuX1 + 12, sy, cpuX2 - cpuX1 - 24, setH - 6);
+        ctx.strokeStyle = borderCol;
+        ctx.lineWidth = hasLine ? 1.5 : 1;
+        ctx.strokeRect(cpuX1 + 12, sy, cpuX2 - cpuX1 - 24, setH - 6);
+
+        // Set index badge
+        ctx.fillStyle = "#111c33";
+        ctx.fillRect(cpuX1 + 16, sy + 4, 90, setH - 14);
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText(`SET ${s} [idx 0b${s.toString(2).padStart(2, '0')}]`, cpuX1 + 20, sy + (setH - 6) / 2 + 3);
+
+        // Valid bit
+        ctx.fillStyle = col;
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText(hasLine ? "[V=1 VALID]" : "[V=0 EMPTY]", cpuX1 + 115, sy + (setH - 6) / 2 + 3);
+
+        // Tags preview
+        const tagsStr = hasLine ? "TAGS: " + cachedInSet.map(x => "0x" + x.toString(16).padStart(2, '0')).join(", ") : "TAGS: [COLD/EMPTY]";
+        ctx.fillStyle = hasLine ? "#facc15" : "#475569";
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.textAlign = "right";
+        ctx.fillText(tagsStr, cpuX2 - 18, sy + (setH - 6) / 2 + 3);
+        ctx.textAlign = "left";
+      }
+
+      // Core State Status Badge
+      const stateCol = isFlushed ? "#ef4444" : "#22c55e";
+      ctx.fillStyle = "#111c33";
+      ctx.fillRect(cpuX1 + 12, cpuY2 - 42, cpuX2 - cpuX1 - 24, 30);
+      ctx.strokeStyle = stateCol;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cpuX1 + 12, cpuY2 - 42, cpuX2 - cpuX1 - 24, 30);
+      ctx.fillStyle = stateCol;
+      ctx.font = "bold 10px Consolas, monospace";
+      ctx.fillText(isFlushed ? "⚡ L1 STATUS: ALL LINES EVICTED (clflush)" : `⚡ L1 STATUS: ${p1PrepCounter.length} VIP LINES RESIDENT IN SRAM`, cpuX1 + 18, cpuY2 - 23);
+
+      // 2. High-Speed System Bus & RDTSC Oscilloscope Monitor
+      const busTraceY1 = cpuY1 + 18;
+      const busTraceY2 = cpuY1 + 28;
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "bold 9px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("HIGH-SPEED SYSTEM BUS (QPI/UPI 64-BYTE)", busX1 + (busX2 - busX1) / 2, busTraceY1 - 6);
+      ctx.textAlign = "left";
+
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cpuX2, busTraceY1); ctx.lineTo(ramX1, busTraceY1);
+      ctx.moveTo(cpuX2, busTraceY2); ctx.lineTo(ramX1, busTraceY2);
+      ctx.stroke();
+
+      // Bus pulse
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath();
+      ctx.arc(busX1 + 20 + busPulseX, busTraceY1 + 5, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // RDTSC Digital Storage Oscilloscope Bezel
+      const instY1 = busTraceY2 + 18;
+      const instY2 = cpuY2 - 12;
+      ctx.fillStyle = "#050a14";
+      ctx.fillRect(busX1 + 10, instY1, busX2 - busX1 - 20, instY2 - instY1);
+      ctx.strokeStyle = "#0284c7";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(busX1 + 10, instY1, busX2 - busX1 - 20, instY2 - instY1);
+
+      // Title bar
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(busX1 + 14, instY1 + 4, busX2 - busX1 - 28, 26);
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 10px Consolas, monospace";
+      ctx.fillText("⏱ RDTSC HARDWARE LATENCY OSCILLOSCOPE", busX1 + 22, instY1 + 21);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "9px Consolas, monospace";
+      ctx.textAlign = "right";
+      ctx.fillText("TIMEBASE: 50 cyc/div", busX2 - 22, instY1 + 21);
+      ctx.textAlign = "left";
+
+      // Grid
+      const gridTop = instY1 + 36;
+      const gridBot = instY2 - 14;
+      const gridW = (busX2 - 20) - (busX1 + 20);
+      const gridH = gridBot - gridTop;
+
+      ctx.strokeStyle = "#0f1d33";
+      ctx.lineWidth = 1;
+      for (let gx = busX1 + 20; gx < busX2 - 20; gx += Math.max(30, Math.floor(gridW / 8))) {
+        ctx.beginPath(); ctx.moveTo(gx, gridTop); ctx.lineTo(gx, gridBot); ctx.stroke();
+      }
+      for (let gy = gridTop; gy < gridBot; gy += Math.max(24, Math.floor(gridH / 5))) {
+        ctx.beginPath(); ctx.moveTo(busX1 + 20, gy); ctx.lineTo(busX2 - 20, gy); ctx.stroke();
+      }
+
+      // Threshold line
+      const threshY = gridTop + gridH * 0.45;
+      ctx.strokeStyle = "#eab308";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(busX1 + 20, threshY); ctx.lineTo(busX2 - 20, threshY); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#eab308";
+      ctx.font = "bold 8px Consolas, monospace";
+      ctx.textAlign = "right";
+      ctx.fillText("THRESHOLD: ~120 CYCLES", busX2 - 24, threshY - 6);
+      ctx.textAlign = "left";
+
+      // Waveform / Measurement
+      if (p1LastProbe.addr !== null) {
+        const hit = p1LastProbe.hit;
+        const cyc = p1LastProbe.cycles;
+        const cCol = hit ? "#22c55e" : "#ef4444";
+        ctx.fillStyle = cCol;
+        ctx.font = "bold 11px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`PROBED: ADDR 0x${p1LastProbe.addr.toString(16).padStart(2, '0')}  |  LATENCY: ${cyc} CYCLES  |  RESULT: ${hit ? 'L1 CACHE HIT' : 'DRAM MISS'}`, busX1 + (busX2 - busX1) / 2, gridTop + 20);
+        ctx.textAlign = "left";
+
+        const waveBaseline = gridBot - gridH * 0.3;
+        const waveX1 = busX1 + 25;
+        const waveX2 = busX2 - 25;
+        const midWave = (waveX1 + waveX2) / 2;
+
+        ctx.strokeStyle = cCol;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(waveX1, waveBaseline);
+
+        if (hit) {
+          ctx.lineTo(midWave - 40, waveBaseline);
+          ctx.lineTo(midWave - 15, waveBaseline - gridH * 0.45);
+          ctx.lineTo(midWave + 15, waveBaseline);
+          ctx.lineTo(waveX2, waveBaseline);
+          ctx.stroke();
+          ctx.fillStyle = "#22c55e";
+          ctx.font = "bold 9px Consolas, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(`⚡ FAST ACCESS (${cyc} cyc)`, midWave, waveBaseline - gridH * 0.45 - 8);
+        } else {
+          ctx.lineTo(midWave - 90, waveBaseline);
+          ctx.lineTo(midWave - 60, waveBaseline - gridH * 0.35);
+          ctx.lineTo(midWave + 60, waveBaseline - gridH * 0.35);
+          ctx.lineTo(midWave + 90, waveBaseline);
+          ctx.lineTo(waveX2, waveBaseline);
+          ctx.stroke();
+          ctx.fillStyle = "#ef4444";
+          ctx.font = "bold 9px Consolas, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(`⏳ SYSTEM BUS STALL (${cyc} cyc)`, midWave, waveBaseline - gridH * 0.35 - 8);
+        }
+        ctx.textAlign = "left";
+      } else {
+        ctx.fillStyle = "#facc15";
+        ctx.font = "bold 10px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("OSCILLOSCOPE READY: PROBE ANY ADDRESS (0-19)", busX1 + (busX2 - busX1) / 2, gridTop + 24);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "9px Consolas, monospace";
+        ctx.fillText("L1 HIT: <80 CYCLES   |   DRAM MISS: >250 CYCLES", busX1 + (busX2 - busX1) / 2, gridTop + 46);
+        ctx.textAlign = "left";
+
+        const waveBaseline = gridBot - gridH * 0.3;
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(busX1 + 25, waveBaseline);
+        ctx.lineTo(busX2 - 25, waveBaseline);
+        ctx.stroke();
+      }
+
+      // 3. DDR4 Physical DRAM DIMM Module
+      ctx.fillStyle = "#042f2e";
+      ctx.fillRect(ramX1, cpuY1, ramX2 - ramX1, cpuY2 - cpuY1);
+      ctx.strokeStyle = "#14b8a6";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ramX1, cpuY1, ramX2 - ramX1, cpuY2 - cpuY1);
+
+      // Gold Edge Fingers
+      ctx.fillStyle = "#eab308";
+      for (let px = ramX1 + 10; px < ramX2 - 10; px += 14) {
+        ctx.fillRect(px, cpuY2, 6, 5);
+      }
+
+      ctx.fillStyle = "#2dd4bf";
+      ctx.font = "bold 11px Consolas, monospace";
+      ctx.fillText("OFF-CHIP DDR4 DRAM (DIMM MODULE - BANK 0)", ramX1 + 15, cpuY1 + 18);
+
+      // 20 Memory Address Cells Grid (4 rows x 5 cols)
+      const cellW = (ramX2 - ramX1 - 40) / 5;
+      const cellH = (cpuY2 - cpuY1 - 65) / 4;
+
+      for (let i = 0; i < 20; i++) {
+        const col = i % 5;
+        const row = Math.floor(i / 5);
+        const cx = ramX1 + 15 + col * cellW;
+        const cy = cpuY1 + 36 + row * cellH;
+        const isCached = p1PrepCounter.includes(i);
+        const isProbed = (p1LastProbe.addr === i);
+
+        ctx.fillStyle = isCached ? "#064e3b" : "#090f1d";
+        ctx.fillRect(cx, cy, cellW - 5, cellH - 5);
+
+        ctx.strokeStyle = isProbed ? "#facc15" : (isCached ? "#22c55e" : "#334155");
+        ctx.lineWidth = isProbed ? 3 : (isCached ? 2 : 1);
+        ctx.strokeRect(cx, cy, cellW - 5, cellH - 5);
+
+        // Address label
+        ctx.fillStyle = isCached ? "#ffffff" : "#cbd5e1";
+        ctx.font = "bold 10px Consolas, monospace";
+        ctx.fillText(`0x${i.toString(16).padStart(2, '0')}`, cx + 8, cy + 14);
+
+        // State label
+        ctx.fillStyle = isCached ? "#34d399" : "#64748b";
+        ctx.font = "bold 8px Consolas, monospace";
+        ctx.fillText(isCached ? "L1 HIT" : "DRAM", cx + 8, cy + cellH - 12);
+      }
+
+      // Draw Execution Thread Token
+      drawExecutionToken(W * tokenNormX, H * tokenNormY - tokenHop);
+    }
+
+        ctx.fillStyle = isCached ? "#134e4a" : "#0f172a";
+        ctx.fillRect(cx, cy, cellW - 5, cellH - 5);
+        ctx.strokeStyle = isCached ? "#22c55e" : "#334155";
+        ctx.lineWidth = isCached ? 1.5 : 1;
+        ctx.strokeRect(cx, cy, cellW - 5, cellH - 5);
+
+        ctx.fillStyle = isCached ? "#38bdf8" : "#94a3b8";
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText(`0x${i.toString(16).padStart(2, '0')}`, cx + 6, cy + 14);
+
+        ctx.fillStyle = isCached ? "#22c55e" : "#475569";
+        ctx.font = "8px Consolas, monospace";
+        ctx.fillText(isCached ? "L1 HIT" : "DRAM", cx + 6, cy + cellH - 10);
+      }
+
+      // Draw Execution Thread Token
+      drawExecutionToken(W * tokenNormX, H * tokenNormY - tokenHop);
+    }
+
+    // ==============================================================
+    // PART 2: 5-STAGE RISC CPU DATAPATH & STORAGE ROUTER
+    // ==============================================================
+    function drawPart2Silicon(W, H) {
+      const topY = 40;
+      const stageH = H * 0.44;
+      const stageW = (W - 80) / 5;
+
+      // Writeback Feedback Loop Bus (WB -> DE)
+      const wbX = 40 + 4 * stageW + stageW / 2;
+      const deX = 40 + 1 * stageW + stageW / 2;
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(wbX, topY); ctx.lineTo(wbX, topY - 20); ctx.lineTo(deX, topY - 20); ctx.lineTo(deX, topY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 9px Consolas, monospace";
+      ctx.fillText("WRITEBACK FEEDBACK BUS: RegWrite (WB -> DE)", (wbX + deX) / 2 - 120, topY - 26);
+
+      // Main Pipeline Bus
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(40, topY + stageH / 2); ctx.lineTo(W - 40, topY + stageH / 2);
+      ctx.stroke();
+
+      const stageDefs = [
+        { abbr: "IF", name: "Fetch", inst: p2Stages.if, sub: `PC: ${p2PC}`, col: "#0284c7" },
+        { abbr: "DE", name: "Decode", inst: p2Stages.de, sub: `r1:${p2Regs.r1 || '--'} r2:${p2Regs.r2 || '--'}`, col: "#d97706" },
+        { abbr: "EX", name: "Execute ALU", inst: p2Stages.ex, sub: "ALU \\___/", col: "#9333ea" },
+        { abbr: "ME", name: "Memory", inst: p2Stages.me, sub: "L1/L2/DRAM Router", col: "#16a34a" },
+        { abbr: "WB", name: "Writeback", inst: p2Stages.wb, sub: `Commit: r3=${p2Regs.r3 || '--'}`, col: "#ca8a04" }
+      ];
+
+      stageDefs.forEach((st, idx) => {
+        const sx = 40 + idx * stageW;
+        const sw = stageW - 20;
+        const isActive = (st.inst !== "nop");
+
+        ctx.fillStyle = "#090e1a";
+        ctx.fillRect(sx, topY, sw, stageH);
+        ctx.strokeStyle = isActive ? st.col : "#334155";
+        ctx.lineWidth = isActive ? 2 : 1;
+        ctx.strokeRect(sx, topY, sw, stageH);
+
+        // Header
+        ctx.fillStyle = isActive ? st.col : "#1e293b";
+        ctx.fillRect(sx, topY, sw, 24);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText(`${st.abbr} (${st.name})`, sx + 8, topY + 16);
+
+        // Instruction
+        ctx.fillStyle = isActive ? "#facc15" : "#64748b";
+        ctx.font = "bold 11px Consolas, monospace";
+        ctx.fillText(st.inst, sx + 8, topY + 50);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "8px Consolas, monospace";
+        ctx.fillText(st.sub, sx + 8, topY + 75);
+
+        // ALU Wedge
+        if (st.abbr === "EX") {
+          const aluCx = sx + sw / 2;
+          const aluCy = topY + stageH - 22;
+          ctx.fillStyle = isActive ? "#581c87" : "#1e293b";
+          ctx.strokeStyle = isActive ? "#c084fc" : "#475569";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(aluCx - 35, aluCy - 12);
+          ctx.lineTo(aluCx + 35, aluCy - 12);
+          ctx.lineTo(aluCx + 22, aluCy + 12);
+          ctx.lineTo(aluCx - 22, aluCy + 12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 8px Consolas, monospace";
+          ctx.fillText("ALU", aluCx - 9, aluCy + 3);
+        }
+
+        // Interstage Latches
+        if (idx < 4) {
+          const lx = sx + sw + 3;
+          ctx.fillStyle = "#1e293b";
+          ctx.fillRect(lx, topY + 10, 14, stageH - 20);
+          ctx.strokeStyle = "#475569";
+          ctx.strokeRect(lx, topY + 10, 14, stageH - 20);
+        }
+      });
+
+      // Storage Hierarchy Router (Bottom 40%)
+      const bottomY = topY + stageH + 18;
+      const tierH = Math.max(70, H - bottomY - 18);
+      const tierW = (W - 80) / 3;
+
+      const tiers = [
+        { name: "L1 DATA CACHE (Prep Counter)", delay: "1.0s Latency (1 Cycle)", desc: "ON-CHIP SRAM (FAST HIT)", col: "#22c55e", id: 1 },
+        { name: "L2 UNIFIED CACHE (Spice Pantry)", delay: "3.0s Latency (3 Cycles)", desc: "MID-LEVEL CACHE HIT", col: "#f59e0b", id: 3 },
+        { name: "MAIN DRAM MEMORY (Walk-In Freezer)", delay: "5.0s Latency (5 Cycles)", desc: "OFF-CHIP MEMORY WALL STALL", col: "#ef4444", id: 5 }
+      ];
+
+      tiers.forEach((t, tidx) => {
+        const tx = 40 + tidx * tierW;
+        const tw = tierW - 20;
+        const isTierActive = (p2Stages.me && p2Stages.me.includes("lw") && (
+          (t.id === 1 && p2Stages.me.includes("5")) ||
+          (t.id === 3 && p2Stages.me.includes("16")) ||
+          (t.id === 5 && p2Stages.me.includes("17"))
+        ));
+
+        ctx.fillStyle = "#090e1a";
+        ctx.fillRect(tx, bottomY, tw, tierH);
+        ctx.strokeStyle = isTierActive ? t.col : "#334155";
+        ctx.lineWidth = isTierActive ? 2 : 1;
+        ctx.strokeRect(tx, bottomY, tw, tierH);
+
+        ctx.fillStyle = isTierActive ? t.col : "#111c33";
+        ctx.fillRect(tx, bottomY, tw, 22);
+        ctx.fillStyle = isTierActive ? "#fff" : "#cbd5e1";
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText(t.name, tx + 10, bottomY + 15);
+
+        ctx.fillStyle = t.col;
+        ctx.font = "bold 11px Consolas, monospace";
+        ctx.fillText(t.delay, tx + 10, bottomY + 40);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "8px Consolas, monospace";
+        ctx.fillText(t.desc, tx + 10, bottomY + 58);
+      });
+
+      drawExecutionToken(W * tokenNormX, H * tokenNormY);
+    }
+
+    // ==============================================================
+    // PART 3: DRAM SILICON MATRIX & TRENCH CAPACITORS
+    // ==============================================================
+    function drawPart3Silicon(W, H) {
+      const marginX = 30;
+      const contentW = W - 2 * marginX;
+      const rowY1 = H * 0.18;
+      const rowY2 = H * 0.45;
+      const rowY3 = H * 0.72;
+      const pteY = H * 0.86;
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 11px Consolas, monospace";
+      ctx.fillText("DRAM SILICON SUBSTRATE (<20nm Technology) • BANK 0 ROW MATRIX", W / 2 - 200, 20);
+
+      // Aggressor 1 (Row A)
+      const agg1Active = (p3RecentHammers[p3RecentHammers.length - 1] === p3SandwichA);
+      ctx.strokeStyle = agg1Active ? "#ef4444" : "#475569";
+      ctx.lineWidth = agg1Active ? 4 : 2;
+      ctx.beginPath();
+      ctx.moveTo(marginX, rowY1); ctx.lineTo(marginX + contentW, rowY1);
+      ctx.stroke();
+
+      ctx.fillStyle = agg1Active ? "#f87171" : "#94a3b8";
+      ctx.font = "bold 9px Consolas, monospace";
+      ctx.fillText(`Aggressor Wordline 1: Row ${p3SandwichA} (Even) ${agg1Active ? '⚡ HIGH-VOLTAGE ACTIVATION (V_PP = 2.5V)' : '[Precharged 0V]'}`, marginX + 10, rowY1 - 10);
+
+      // Victim Wordline (Row T)
+      const isDisturbed = p3AccessListFallen;
+      ctx.strokeStyle = isDisturbed ? "#ef4444" : "#22c55e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(marginX, rowY2); ctx.lineTo(marginX + contentW, rowY2);
+      ctx.stroke();
+
+      ctx.fillStyle = isDisturbed ? "#f87171" : "#4ade80";
+      ctx.font = "bold 10px Consolas, monospace";
+      ctx.fillText(`VICTIM WORDLINE: Row ${p3TargetRow} [SECURITY ACCESS LIST / PTE] &bull; ${isDisturbed ? '⚡ BIT-FLIP BREACHED!' : 'PROTECTED [Capacitor Charged]'}`, marginX + 10, rowY2 - 25);
+
+      // 6 Trench Capacitor Cells
+      const capW = (contentW - 60) / 6;
+      for (let c = 0; c < 6; c++) {
+        const cx = marginX + 25 + c * capW;
+        const cy = rowY2 - 18;
+        const isTargetCell = (c === 2);
+        const cellV = isTargetCell && isDisturbed ? 0.22 : isTargetCell ? 0.65 : 1.18;
+        const chargePct = Math.min(1.0, Math.max(0.05, cellV / 1.20));
+        const isFlipped = isTargetCell && isDisturbed;
+
+        ctx.fillStyle = "#090e1a";
+        ctx.fillRect(cx, cy, capW - 12, 44);
+        ctx.strokeStyle = isFlipped ? "#ef4444" : "#38bdf8";
+        ctx.lineWidth = isTargetCell ? 1.5 : 1;
+        ctx.strokeRect(cx, cy, capW - 12, 44);
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 8px Consolas, monospace";
+        ctx.fillText(`Cap C${c}`, cx + 6, cy + 12);
+
+        // Charge Bar
+        const barCol = isFlipped ? "#ef4444" : (chargePct > 0.6 ? "#22c55e" : "#f59e0b");
+        ctx.fillStyle = barCol;
+        ctx.fillRect(cx + 4, cy + 18, (capW - 20) * chargePct, 10);
+
+        ctx.fillText(isFlipped ? "BIT: 0!" : `${cellV.toFixed(2)}V`, cx + 6, cy + 38);
+      }
+
+      // Aggressor 2 (Row B)
+      const agg2Active = (p3RecentHammers[p3RecentHammers.length - 1] === p3SandwichB);
+      ctx.strokeStyle = agg2Active ? "#ef4444" : "#475569";
+      ctx.lineWidth = agg2Active ? 4 : 2;
+      ctx.beginPath();
+      ctx.moveTo(marginX, rowY3); ctx.lineTo(marginX + contentW, rowY3);
+      ctx.stroke();
+
+      ctx.fillStyle = agg2Active ? "#f87171" : "#94a3b8";
+      ctx.font = "bold 9px Consolas, monospace";
+      ctx.fillText(`Aggressor Wordline 2: Row ${p3SandwichB} (Even) ${agg2Active ? '⚡ HIGH-VOLTAGE ACTIVATION (V_PP = 2.5V)' : '[Precharged 0V]'}`, marginX + 10, rowY3 + 14);
+
+      // Electromagnetic Crosstalk Sparks
+      if (shelfShake > 0) {
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const sx = marginX + 50 + i * (contentW / 7);
+          ctx.beginPath();
+          ctx.moveTo(sx, rowY1); ctx.lineTo(sx + 8, (rowY1 + rowY2) / 2); ctx.lineTo(sx - 4, rowY2); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx + 15, rowY3); ctx.lineTo(sx + 22, (rowY2 + rowY3) / 2); ctx.lineTo(sx + 10, rowY2); ctx.stroke();
+        }
+      }
+
+      // 64-Bit Page Table Entry Register
+      ctx.fillStyle = "#040914";
+      ctx.fillRect(marginX, pteY, contentW, 36);
+      ctx.strokeStyle = isDisturbed ? "#ef4444" : "#0284c7";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(marginX, pteY, contentW, 36);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 9px Consolas, monospace";
+      ctx.fillText("64-BIT PAGE TABLE ENTRY (PTE): [PFN: 0x00000001B400] &bull; P=1 | PCD=0 | A=1 | D=0", marginX + 12, pteY + 12);
+
+      const usText = isDisturbed ? "0 (SUPERVISOR / KERNEL ROOT PRIVILEGE GRANTED!)" : "1 (User Mode - Unprivileged)";
+      const rwText = isDisturbed ? "1 (Read / Write Access)" : "0 (Read-Only Protected)";
+      ctx.fillStyle = isDisturbed ? "#ef4444" : "#22c55e";
+      ctx.fillText(`[BIT 2] U/S Flag: ${usText}   |   [BIT 1] R/W Flag: ${rwText}`, marginX + 12, pteY + 26);
+
+      drawExecutionToken(marginX + 15, (agg1Active ? rowY1 : agg2Active ? rowY3 : rowY2));
+    }
+
+    function drawExecutionToken(cx, cy) {
+      const r = 13;
+      ctx.fillStyle = "#0284c7";
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy); ctx.lineTo(cx, cy + r); ctx.lineTo(cx - r, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 6); ctx.lineTo(cx + 6, cy); ctx.lineTo(cx, cy + 6); ctx.lineTo(cx - 6, cy);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     // --- PART 1: FLUSH + RELOAD ATTACK ENGINE ---
     let p1All = Array.from({length: 20}, (_, i) => i);
@@ -1014,11 +1559,13 @@ void probe(char *adrs) {
       p1Secret = [...p1All].sort(() => 0.5 - Math.random()).slice(0, 6);
       p1PrepCounter = [...p1All].sort(() => 0.5 - Math.random()).slice(0, 6);
       p1Budget = 18;
+      p1LastProbe = { addr: null, hit: null, cycles: null };
       updateP1Budget();
       document.getElementById('hudVal2').textContent = "-- s";
-      document.getElementById('hudFeedback').textContent = "Round reset. Flush cache, trigger victim order, and map hits!";
+      document.getElementById('hudFeedback').textContent = "Round reset. Flush cache (clflush), trigger victim order, and map hits!";
       document.getElementById('p1GuessInput').value = "";
-      targetChefX = 140;
+      targetTokenNormX = 0.16;
+      tokenNormY = 0.50;
     }
 
     function updateP1Budget() {
@@ -1029,24 +1576,25 @@ void probe(char *adrs) {
 
     function p1Flush() {
       p1PrepCounter = [];
-      document.getElementById('hudFeedback').textContent = "Cache Flushed (clflush executed). Prep counter is completely empty!";
+      p1LastProbe = { addr: null, hit: null, cycles: null };
+      document.getElementById('hudFeedback').textContent = "Cache Flushed (clflush executed). L1 SRAM lines evicted [V=0]!";
       document.getElementById('hudVal2').textContent = "-- s";
-      chefHop = 15;
+      tokenHop = 15;
     }
 
     function p1TriggerVictim() {
-      // Victim loads secrets onto counter
+      // Victim loads secrets into L1 cache
       p1Secret.forEach(item => {
         if (!p1PrepCounter.includes(item)) p1PrepCounter.push(item);
       });
-      targetChefX = 720;
-      setTimeout(() => { targetChefX = 140; }, 400);
-      document.getElementById('hudFeedback').textContent = "Victim Executed: VIP placed 6 secret ingredients on the prep counter!";
+      targetTokenNormX = 0.82;
+      setTimeout(() => { targetTokenNormX = 0.16; }, 400);
+      document.getElementById('hudFeedback').textContent = "Victim Executed: VIP memory lines loaded into L1 Data Cache [V=1]!";
     }
 
     function p1Probe() {
       if (p1Budget <= 0) {
-        alert("Out of probes! The Chef got suspicious. Reset the round to try again.");
+        alert("Out of probes! Hardware security monitor flagged access threshold. Reset round to retry.");
         return;
       }
       const addr = parseInt(document.getElementById('p1ProbeInput').value);
@@ -1055,19 +1603,23 @@ void probe(char *adrs) {
 
       if (p1PrepCounter.includes(addr)) {
         // Cache Hit
-        chefHop = 20;
+        tokenHop = 22;
+        const cycles = Math.floor(52 + Math.random() * 24);
+        p1LastProbe = { addr, hit: true, cycles };
         const latency = (0.05 + Math.random() * 0.04).toFixed(3);
-        document.getElementById('hudVal2').textContent = `${latency} s (FAST CACHE HIT)`;
+        document.getElementById('hudVal2').textContent = `${cycles} cyc (${latency}s HIT)`;
         document.getElementById('hudVal2').style.color = "#22c55e";
-        document.getElementById('hudFeedback').textContent = `Probing Addr ${addr}: Found in L1 Cache! Fast Hit (<0.1s)!`;
+        document.getElementById('hudFeedback').textContent = `Probing 0x${addr.toString(16).padStart(2,'0')}: Found in L1 Data Cache! Fast Hit (${cycles} cycles)!`;
       } else {
         // Cache Miss
-        targetChefX = 720;
-        setTimeout(() => { targetChefX = 140; }, 500);
+        targetTokenNormX = 0.82;
+        setTimeout(() => { targetTokenNormX = 0.16; }, 500);
+        const cycles = Math.floor(260 + Math.random() * 65);
+        p1LastProbe = { addr, hit: false, cycles };
         const latency = (1.75 + Math.random() * 0.35).toFixed(3);
-        document.getElementById('hudVal2').textContent = `${latency} s (SLOW CACHE MISS)`;
-        document.getElementById('hudVal2').style.color = "#f97316";
-        document.getElementById('hudFeedback').textContent = `Probing Addr ${addr}: Missing from L1! Fetched from DRAM Walk-In Freezer (>1.5s).`;
+        document.getElementById('hudVal2').textContent = `${cycles} cyc (${latency}s MISS)`;
+        document.getElementById('hudVal2').style.color = "#ef4444";
+        document.getElementById('hudFeedback').textContent = `Probing 0x${addr.toString(16).padStart(2,'0')}: Missing from L1! Fetched from DDR4 DRAM (${cycles} cycles).`;
         p1PrepCounter.push(addr); // Line is now cached
       }
     }
@@ -1126,7 +1678,8 @@ void probe(char *adrs) {
       p2Stages = { if: "nop", de: "nop", ex: "nop", me: "nop", wb: "nop" };
       p2Regs = { r1: null, r2: null, r3: null };
       p2Completed = false;
-      targetChefX = 140;
+      targetTokenNormX = 0.10;
+      tokenNormY = 0.22;
       updateP2UI("Pipeline reset to Cycle 0.");
       document.getElementById('btnP2Auto').textContent = "⏩ Auto Run";
     }
@@ -1151,14 +1704,16 @@ void probe(char *adrs) {
       if (p2Stages.wb && p2Stages.wb.startsWith("lw r3")) p2Regs.r3 = 20;
       if (p2Stages.wb && p2Stages.wb.startsWith("add r3")) p2Regs.r3 = 146;
 
-      // 2. ME Memory Access & Chef Movement
+      // 2. ME Memory Access & Token Movement
       let latencyStr = "-- s";
       if (p2Stages.me && p2Stages.me.includes("lw")) {
-        if (p2Stages.me.includes("5")) { targetChefX = 140; latencyStr = "1.0s (L1 Hit)"; }
-        else if (p2Stages.me.includes("16")) { targetChefX = 440; latencyStr = "3.0s (L2 Hit)"; }
-        else if (p2Stages.me.includes("17")) { targetChefX = 740; latencyStr = "5.0s (DRAM Miss)"; }
+        tokenNormY = 0.80;
+        if (p2Stages.me.includes("5")) { targetTokenNormX = 0.16; latencyStr = "1.0s (L1 Hit)"; }
+        else if (p2Stages.me.includes("16")) { targetTokenNormX = 0.50; latencyStr = "3.0s (L2 Hit)"; }
+        else if (p2Stages.me.includes("17")) { targetTokenNormX = 0.84; latencyStr = "5.0s (DRAM Miss)"; }
       } else {
-        targetChefX = 140;
+        targetTokenNormX = 0.50;
+        tokenNormY = 0.22;
       }
       document.getElementById('hudVal2').textContent = latencyStr;
 
@@ -1270,7 +1825,8 @@ void probe(char *adrs) {
       updateP3Actions();
       renderShelfMap();
       document.getElementById('hudFeedback').textContent = "System ready. Use a skip search across even rows (2–18) to detect vibrations!";
-      targetChefX = 400;
+      targetTokenNormX = 0.08;
+      tokenNormY = 0.45;
     }
 
     function updateP3Actions() {
@@ -1297,20 +1853,20 @@ void probe(char *adrs) {
 
     function p3HammerRow() {
       if (p3Actions <= 0) {
-        alert("Out of Actions! The Prep Cook walked in and restocked the shelves. Progress wiped!");
+        alert("Out of Actions! Auto-refresh expired and progress wiped!");
         p3Reset();
         return;
       }
       p3Actions--;
       updateP3Actions();
       shelfShake = 15;
+      tokenHop = 15;
 
       const row = parseInt(document.getElementById('p3RowSelect').value);
       p3RecentHammers.push(row);
       if (p3RecentHammers.length > 6) p3RecentHammers.shift();
 
-      targetChefX = 700;
-      setTimeout(() => { targetChefX = 450; }, 350);
+      targetTokenNormX = 0.08;
 
       // Check Double-Sided Rowhammer
       if (row === p3SandwichA || row === p3SandwichB) {
